@@ -78,6 +78,9 @@
   .route-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 7px 10px; }
   .route-toolbar .rt-count { font-size: 0.78rem; font-weight: 700; color: #4338ca; }
   .btn-route { padding: 6px 12px; background: #4f46e5; color: white; border: none; border-radius: 16px; font-size: 0.76rem; font-weight: 700; cursor: pointer; }
+  .btn-route-clear { background: white; color: #4f46e5; border: 1.5px solid #4f46e5; }
+  .btn-route-clear:hover { background: #eef2ff; }
+  .btn-route-clear:disabled { background: white; color: #cbd5e1; border-color: #cbd5e1; cursor: not-allowed; }
   .btn-route:hover { background: #4338ca; }
   .btn-route:disabled { background: #cbd5e1; cursor: not-allowed; }
   .route-result { display: none; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 0.78rem; color: #4c1d95; line-height: 1.5; }
@@ -103,6 +106,8 @@
   .btn-export { padding: 12px 20px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
   .btn-map-html { background: #7c3aed; }
   .btn-map-html:hover { background: #6d28d9; }
+  .btn-naver-app { background: #16a34a; }
+  .btn-naver-app:hover { background: #15803d; }
   .btn-export:hover { background: #059669; }
   .btn-export:disabled { background: #cbd5e1; cursor: not-allowed; }
   #status { font-size: 0.85rem; font-weight: 700; color: #2563eb; }
@@ -165,8 +170,11 @@
     <div class="list-panel" id="left-panel">
       <h3>📋 주소 목록 (<span id="addr-count">0</span>)</h3>
       <div class="route-toolbar">
-        <span class="rt-count"><span id="selected-count">0</span>곳 선택됨</span>
-        <button class="btn-route" id="route-btn" onclick="computeRoute()" disabled>🧭 선택한 곳 최단경로 표시</button>
+        <span class="rt-count"><span id="selected-count">0</span>곳 선택됨 (최대 7곳)</span>
+        <div style="display:flex; gap:6px;">
+          <button class="btn-route btn-route-clear" id="route-clear-btn" onclick="clearSelection()" disabled>선택 해제</button>
+          <button class="btn-route" id="route-btn" onclick="computeRoute()" disabled>🧭 최단경로 표시</button>
+        </div>
       </div>
       <div class="route-result" id="route-result"></div>
       <table>
@@ -188,7 +196,8 @@
 
   <div class="bottom-actions">
     <span id="status"></span>
-    <div style="display:flex; gap:10px;">
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn-export btn-naver-app" id="naver-app-btn" onclick="showAllInNaverApp()" disabled>📱 선택한 지점 네이버 지도 앱에서 보기</button>
       <button class="btn-export btn-map-html" id="map-html-btn" onclick="exportMapHtml()" disabled>🗺️ 지도를 HTML로 다운로드</button>
       <button class="btn-export" id="export-btn" onclick="exportResults()" disabled>⬇ 좌표 포함 엑셀로 다운로드</button>
     </div>
@@ -206,6 +215,7 @@
   const addrCountEl = document.getElementById('addr-count');
   const exportBtn = document.getElementById('export-btn');
   const mapHtmlBtn = document.getElementById('map-html-btn');
+  const naverAppBtn = document.getElementById('naver-app-btn');
   const statusEl = document.getElementById('status');
   const resetBtn = document.getElementById('reset-btn');
 
@@ -219,6 +229,7 @@
   const routeSelection = new Set(); // 최단경로 계산용으로 체크한 항목의 idx 모음
   let routePolyline = null;
   const routeBtn = document.getElementById('route-btn');
+  const routeClearBtn = document.getElementById('route-clear-btn');
   const selectedCountEl = document.getElementById('selected-count');
   const routeResultEl = document.getElementById('route-result');
 
@@ -281,6 +292,7 @@
     startBtn.disabled = true;
     exportBtn.disabled = true;
     mapHtmlBtn.disabled = true;
+    naverAppBtn.disabled = true;
     clearMarkers();
     addrListBody.innerHTML = '';
 
@@ -320,6 +332,7 @@
     startBtn.disabled = false;
     exportBtn.disabled = items.length === 0;
     mapHtmlBtn.disabled = successCount === 0;
+    updateRouteToolbar(); // naverAppBtn 등은 체크박스 선택 상태 기준으로 다시 계산
   }
 
   function geocodeOne(item, idx) {
@@ -447,6 +460,15 @@
   function updateRouteToolbar() {
     selectedCountEl.textContent = routeSelection.size;
     routeBtn.disabled = routeSelection.size < 2;
+    routeClearBtn.disabled = routeSelection.size === 0;
+    naverAppBtn.disabled = routeSelection.size === 0;
+  }
+
+  // 체크된 항목을 전부 해제한다 - 다른 7곳을 새로 고를 때 사용.
+  function clearSelection() {
+    routeSelection.clear();
+    document.querySelectorAll('#addr-list-body input[type="checkbox"]').forEach(chk => { chk.checked = false; });
+    updateRouteToolbar();
   }
 
   // 선택된 지점들을 OSRM(공개 경로계산 서비스)의 trip(방문순서 최적화) 엔드포인트로 보내
@@ -512,16 +534,12 @@
     routeResultEl.innerHTML = '';
   }
 
-  // 네이버지도 앱 길찾기 딥링크(nmap://route/car)에 경유지(via1..via5)를 실어 보낸다.
-  // 네이버가 공식 문서에서 명시한 경유지 개수 상한은 별도 확인이 필요하므로, 최대 5곳까지만 담는다.
-  function buildNaverMultiRouteAppUrl(selectedItems, waypoints) {
-    const ordered = waypoints
-      .map((wp, i) => ({ order: wp.waypoint_index, item: selectedItems[i] }))
-      .sort((a, b) => a.order - b.order)
-      .map(o => o.item);
-    const start = ordered[0];
-    const end = ordered[ordered.length - 1];
-    const vias = ordered.slice(1, -1).slice(0, 5);
+  // 정렬된 지점 배열(출발→경유지들→도착)로 네이버지도 앱 경로 딥링크를 만드는 공통 함수.
+  // 네이버가 공식 문서에서 명시한 경유지 개수 상한은 별도 확인이 필요하므로, 최대 5곳(via1~5)까지만 담는다.
+  function buildNaverRouteAppUrlFromOrderedItems(orderedItems) {
+    const start = orderedItems[0];
+    const end = orderedItems[orderedItems.length - 1];
+    const vias = orderedItems.slice(1, -1).slice(0, 5);
     let url = `nmap://route/car?slat=${start.lat}&slng=${start.lng}&sname=${encodeURIComponent(start.name || start.address)}` +
       `&dlat=${end.lat}&dlng=${end.lng}&dname=${encodeURIComponent(end.name || end.address)}`;
     vias.forEach((v, i) => {
@@ -529,6 +547,47 @@
     });
     url += `&appname=${encodeURIComponent(location.href)}`;
     return url;
+  }
+
+  function buildNaverMultiRouteAppUrl(selectedItems, waypoints) {
+    const ordered = waypoints
+      .map((wp, i) => ({ order: wp.waypoint_index, item: selectedItems[i] }))
+      .sort((a, b) => a.order - b.order)
+      .map(o => o.item);
+    return buildNaverRouteAppUrlFromOrderedItems(ordered);
+  }
+
+  // 체크박스로 선택한 지점들을(목록 순서대로) 네이버 지도 앱에서 한 번에 열어본다.
+  // 7곳이 넘으면 앞의 7곳만 보내지고, 나머지는 선택 해제 후 다시 골라서 반복하면 된다.
+  function showAllInNaverApp() {
+    const selectedIdx = [...routeSelection].sort((a, b) => a - b);
+    const okItems = selectedIdx.map(idx => items[idx]).filter(it => it && it.status === 'ok');
+    const failedCount = selectedIdx.length - okItems.length;
+
+    if (okItems.length < 1) {
+      alert('먼저 목록의 체크박스로 네이버 지도에서 보고 싶은 지점을 선택해 주세요 (좌표 변환에 성공한 곳만 가능).');
+      return;
+    }
+    if (okItems.length === 1) {
+      // 1곳만 선택한 경우엔 경로가 아니라 단순 장소 보기로 연다.
+      const it = okItems[0];
+      window.location.href = `nmap://place?lat=${it.lat}&lng=${it.lng}&name=${encodeURIComponent(it.name || it.address)}&appname=${encodeURIComponent(location.href)}`;
+      return;
+    }
+
+    let targetItems = okItems;
+    let note = '';
+    if (okItems.length > 7) {
+      targetItems = okItems.slice(0, 7);
+      note += `선택하신 ${okItems.length}곳 중 최대 7곳까지만 네이버 지도 앱에 담을 수 있어서, 선택 순서상 앞의 7곳만 열립니다. 나머지는 '선택 해제' 후 다시 체크해서 반복해서 보시면 됩니다.\n\n`;
+    }
+    if (failedCount > 0) {
+      note += `선택하신 항목 중 좌표 변환에 실패한 ${failedCount}곳은 제외하고 열립니다.`;
+    }
+    if (note) alert(note.trim());
+
+    const url = buildNaverRouteAppUrlFromOrderedItems(targetItems);
+    window.location.href = url;
   }
 
   function updateRowStatus(idx) {
@@ -683,6 +742,7 @@
     statusEl.textContent = '';
     exportBtn.disabled = true;
     mapHtmlBtn.disabled = true;
+    naverAppBtn.disabled = true;
     resetBtn.disabled = true;
     if (map) { map.setCenter(new naver.maps.LatLng(36.2758, 126.9099)); map.setZoom(12); }
   }
