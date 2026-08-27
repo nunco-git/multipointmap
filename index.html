@@ -75,9 +75,19 @@
 
   .list-panel { flex: 0 0 calc(40% - 7px); min-width: 300px; max-width: 70%; border: 1px solid #e2e8f0; border-radius: 10px; background: #fafafa; height: 100%; min-height: 300px; max-height: 78vh; overflow: auto; padding: 12px; resize: vertical; }
   .list-panel h3 { margin: 0 0 8px 0; font-size: 1rem; }
+  .route-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 7px 10px; }
+  .route-toolbar .rt-count { font-size: 0.78rem; font-weight: 700; color: #4338ca; }
+  .btn-route { padding: 6px 12px; background: #4f46e5; color: white; border: none; border-radius: 16px; font-size: 0.76rem; font-weight: 700; cursor: pointer; }
+  .btn-route:hover { background: #4338ca; }
+  .btn-route:disabled { background: #cbd5e1; cursor: not-allowed; }
+  .route-result { display: none; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 0.78rem; color: #4c1d95; line-height: 1.5; }
+  .route-result.visible { display: block; }
+  .route-result .rr-order { font-weight: 700; }
+  .route-result a { color: #4f46e5; font-weight: 700; text-decoration: none; }
   table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.82rem; text-align: left; }
   th { background: #f8fafc; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; position: sticky; top: 0; white-space: nowrap; }
   td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.chk-col { width: 30px; overflow: visible; }
   tr.addr-row { cursor: pointer; }
   tr.addr-row:hover { background: #eff6ff; }
   tr.addr-row.selected { background: #dbeafe; }
@@ -87,6 +97,7 @@
 
   .map-panel { flex: 1 1 calc(60% - 7px); min-width: 320px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; height: 100%; min-height: 300px; max-height: 78vh; }
   #map { width: 100%; height: 100%; min-height: 300px; }
+  .marker-label { background: white; border: 1.5px solid #2563eb; border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700; color: #1e3a8a; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.15); transform: translate(-50%, -140%); }
 
   .bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
   .btn-export { padding: 12px 20px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
@@ -96,8 +107,11 @@
   .btn-export:disabled { background: #cbd5e1; cursor: not-allowed; }
   #status { font-size: 0.85rem; font-weight: 700; color: #2563eb; }
 
-  .infowindow-box { padding: 10px 12px; font-size: 0.82rem; line-height: 1.5; max-width: 240px; }
+  .infowindow-box { padding: 10px 12px; font-size: 0.82rem; line-height: 1.5; max-width: 260px; }
   .infowindow-box .iw-title { font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+  .infowindow-box .iw-extra { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0; }
+  .infowindow-box .iw-extra div { display: flex; gap: 4px; }
+  .infowindow-box .iw-extra .iw-key { color: #64748b; font-weight: 600; flex-shrink: 0; }
   .infowindow-box .iw-btns { display: flex; gap: 6px; margin-top: 8px; }
   .infowindow-box .iw-btns a { flex: 1; text-align: center; padding: 6px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-decoration: none; }
   .iw-app { background: #2563eb; color: white; }
@@ -150,12 +164,17 @@
   <div class="editor-layout">
     <div class="list-panel" id="left-panel">
       <h3>📋 주소 목록 (<span id="addr-count">0</span>)</h3>
+      <div class="route-toolbar">
+        <span class="rt-count"><span id="selected-count">0</span>곳 선택됨</span>
+        <button class="btn-route" id="route-btn" onclick="computeRoute()" disabled>🧭 선택한 곳 최단경로 표시</button>
+      </div>
+      <div class="route-result" id="route-result"></div>
       <table>
         <thead>
-          <tr><th style="width:36px;">No.</th><th>이름/주소</th><th style="width:64px;">상태</th></tr>
+          <tr><th class="chk-col"></th><th style="width:36px;">No.</th><th>이름/주소</th><th style="width:56px;">상태</th></tr>
         </thead>
         <tbody id="addr-list-body">
-          <tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">엑셀 파일을 업로드해 주세요.</td></tr>
+          <tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px;">엑셀 파일을 업로드해 주세요.</td></tr>
         </tbody>
       </table>
     </div>
@@ -192,11 +211,16 @@
 
   let rawRows = [];       // 엑셀 원본 행(객체 배열, 헤더 기준)
   let headers = [];       // 엑셀 헤더 목록
-  let items = [];         // { name, address, status, lat, lng, marker }
+  let items = [];         // { name, address, status, lat, lng, extra: {other cols} }
   let map = null;
   let markers = [];
   let activeInfoWindow = null;
   let selectedIndex = null;
+  const routeSelection = new Set(); // 최단경로 계산용으로 체크한 항목의 idx 모음
+  let routePolyline = null;
+  const routeBtn = document.getElementById('route-btn');
+  const selectedCountEl = document.getElementById('selected-count');
+  const routeResultEl = document.getElementById('route-result');
 
   dropZone.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
@@ -260,12 +284,23 @@
     clearMarkers();
     addrListBody.innerHTML = '';
 
-    items = rawRows.map(row => ({
-      name: nameCol ? String(row[nameCol] || '').trim() : '',
-      address: String(row[addrCol] || '').trim(),
-      status: 'pending',
-      lat: null, lng: null
-    })).filter(it => it.address !== '');
+    routeSelection.clear();
+    clearRoute();
+    updateRouteToolbar();
+
+    items = rawRows.map(row => {
+      const extra = {};
+      headers.forEach(h => {
+        if (h !== addrCol && h !== nameCol) extra[h] = row[h];
+      });
+      return {
+        name: nameCol ? String(row[nameCol] || '').trim() : '',
+        address: String(row[addrCol] || '').trim(),
+        status: 'pending',
+        lat: null, lng: null,
+        extra
+      };
+    }).filter(it => it.address !== '');
 
     addrCountEl.textContent = items.length;
     items.forEach((it, idx) => addrListBody.appendChild(buildRow(it, idx)));
@@ -307,15 +342,33 @@
 
   function addMarker(item, idx) {
     const position = new naver.maps.LatLng(item.lat, item.lng);
-    const marker = new naver.maps.Marker({ position, map, title: item.name || item.address });
     const label = escapeHtml(item.name || item.address);
+    // 지도 위에 이름을 항상 표시 - 핀 아이콘 + 그 위에 이름표(라벨)를 함께 그린다.
+    const markerHtml = `
+      <div style="position:relative;">
+        <div class="marker-label">${label}</div>
+        <div style="width:14px;height:14px;border-radius:50%;background:#2563eb;border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>
+      </div>`;
+    const marker = new naver.maps.Marker({
+      position, map, title: item.name || item.address,
+      icon: { content: markerHtml, anchor: new naver.maps.Point(7, 7) }
+    });
+
     const addrText = escapeHtml(item.address);
     const appUrl = `nmap://place?lat=${item.lat}&lng=${item.lng}&name=${encodeURIComponent(item.name || item.address)}&appname=${encodeURIComponent(location.href)}`;
     const webUrl = `https://map.naver.com/p/search/${encodeURIComponent(item.address)}`;
+
+    // 엑셀의 나머지(주소/이름 외) 열 정보를 클릭 시 함께 보여준다.
+    const extraKeys = Object.keys(item.extra || {}).filter(k => String(item.extra[k]).trim() !== '');
+    const extraHtml = extraKeys.length > 0
+      ? `<div class="iw-extra">${extraKeys.map(k => `<div><span class="iw-key">${escapeHtml(k)}:</span><span>${escapeHtml(item.extra[k])}</span></div>`).join('')}</div>`
+      : '';
+
     const iw = new naver.maps.InfoWindow({
       content: `<div class="infowindow-box">
         <div class="iw-title">${label}</div>
         <div>${addrText}</div>
+        ${extraHtml}
         <div class="iw-btns">
           <a class="iw-app" href="${appUrl}">📱 앱으로 길찾기</a>
           <a class="iw-web" href="${webUrl}" target="_blank" rel="noopener noreferrer">🌐 웹에서 보기</a>
@@ -354,7 +407,8 @@
     const tr = document.createElement('tr');
     tr.className = 'addr-row';
     tr.dataset.idx = idx;
-    tr.onclick = () => {
+    tr.onclick = (e) => {
+      if (e.target.closest('input[type="checkbox"]')) return;
       selectRow(idx);
       const found = markers.find(m => m.idx === idx);
       if (found) {
@@ -365,6 +419,16 @@
         activeInfoWindow = found.iw;
       }
     };
+    const tdChk = document.createElement('td');
+    tdChk.className = 'chk-col';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.title = '경로 계산에 포함';
+    chk.onchange = () => {
+      if (chk.checked) routeSelection.add(idx); else routeSelection.delete(idx);
+      updateRouteToolbar();
+    };
+    tdChk.appendChild(chk);
     const tdNum = document.createElement('td');
     tdNum.textContent = idx + 1;
     const tdName = document.createElement('td');
@@ -373,10 +437,98 @@
     const tdStatus = document.createElement('td');
     tdStatus.id = `status-${idx}`;
     tdStatus.innerHTML = '<span class="status-pending">대기</span>';
+    tr.appendChild(tdChk);
     tr.appendChild(tdNum);
     tr.appendChild(tdName);
     tr.appendChild(tdStatus);
     return tr;
+  }
+
+  function updateRouteToolbar() {
+    selectedCountEl.textContent = routeSelection.size;
+    routeBtn.disabled = routeSelection.size < 2;
+  }
+
+  // 선택된 지점들을 OSRM(공개 경로계산 서비스)의 trip(방문순서 최적화) 엔드포인트로 보내
+  // 가장 효율적인 방문 순서와 실제 도로 경로를 계산하고, 우리 지도 위에 선으로 그린다.
+  async function computeRoute() {
+    const selected = [...routeSelection]
+      .map(idx => items[idx])
+      .filter(it => it && it.status === 'ok');
+    if (selected.length < 2) { alert('경로를 계산하려면 좌표 변환에 성공한 장소를 2곳 이상 선택해 주세요.'); return; }
+
+    routeBtn.disabled = true;
+    routeResultEl.classList.add('visible');
+    routeResultEl.textContent = '⚡ 최단 경로 계산 중...';
+
+    try {
+      const coordStr = selected.map(it => `${it.lng},${it.lat}`).join(';');
+      const url = `https://router.project-osrm.org/trip/v1/driving/${coordStr}?roundtrip=false&source=first&overview=full&geometries=geojson`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.code !== 'Ok' || !data.trips || !data.trips[0]) {
+        throw new Error(data.message || '경로를 찾지 못했습니다.');
+      }
+
+      const trip = data.trips[0];
+      // waypoints[i].waypoint_index = 방문 순서 (0부터) — 이 순서대로 이름을 정렬해 보여준다.
+      const visitOrder = data.waypoints
+        .map((wp, i) => ({ order: wp.waypoint_index, name: selected[i].name || selected[i].address }))
+        .sort((a, b) => a.order - b.order)
+        .map(v => v.name);
+
+      drawRoutePolyline(trip.geometry.coordinates);
+
+      const km = (trip.distance / 1000).toFixed(1);
+      const min = Math.round(trip.duration / 60);
+      const naverAppUrl = buildNaverMultiRouteAppUrl(selected, data.waypoints);
+
+      routeResultEl.innerHTML =
+        `<div class="rr-order">방문 순서: ${visitOrder.map(escapeHtml).join(' → ')}</div>` +
+        `<div>총 거리 약 ${km}km · 예상 소요시간 약 ${min}분 (도로 기준, 실시간 교통정보 미반영)</div>` +
+        `<a href="${naverAppUrl}">📱 네이버 지도 앱으로 이 경로 열기(실시간 교통정보 반영)</a>`;
+    } catch (err) {
+      console.error(err);
+      routeResultEl.textContent = '❌ 경로 계산에 실패했습니다: ' + err.message;
+    } finally {
+      routeBtn.disabled = routeSelection.size < 2;
+    }
+  }
+
+  function drawRoutePolyline(geoJsonCoords) {
+    clearRoute();
+    const path = geoJsonCoords.map(c => new naver.maps.LatLng(c[1], c[0]));
+    routePolyline = new naver.maps.Polyline({
+      map, path, strokeColor: '#4f46e5', strokeWeight: 5, strokeOpacity: 0.85
+    });
+    const bounds = new naver.maps.LatLngBounds();
+    path.forEach(p => bounds.extend(p));
+    map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+  }
+
+  function clearRoute() {
+    if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
+    routeResultEl.classList.remove('visible');
+    routeResultEl.innerHTML = '';
+  }
+
+  // 네이버지도 앱 길찾기 딥링크(nmap://route/car)에 경유지(via1..via5)를 실어 보낸다.
+  // 네이버가 공식 문서에서 명시한 경유지 개수 상한은 별도 확인이 필요하므로, 최대 5곳까지만 담는다.
+  function buildNaverMultiRouteAppUrl(selectedItems, waypoints) {
+    const ordered = waypoints
+      .map((wp, i) => ({ order: wp.waypoint_index, item: selectedItems[i] }))
+      .sort((a, b) => a.order - b.order)
+      .map(o => o.item);
+    const start = ordered[0];
+    const end = ordered[ordered.length - 1];
+    const vias = ordered.slice(1, -1).slice(0, 5);
+    let url = `nmap://route/car?slat=${start.lat}&slng=${start.lng}&sname=${encodeURIComponent(start.name || start.address)}` +
+      `&dlat=${end.lat}&dlng=${end.lng}&dname=${encodeURIComponent(end.name || end.address)}`;
+    vias.forEach((v, i) => {
+      url += `&via${i + 1}lat=${v.lat}&via${i + 1}lng=${v.lng}&via${i + 1}name=${encodeURIComponent(v.name || v.address)}`;
+    });
+    url += `&appname=${encodeURIComponent(location.href)}`;
+    return url;
   }
 
   function updateRowStatus(idx) {
@@ -502,8 +654,11 @@
     rawRows = [];
     headers = [];
     items = [];
+    routeSelection.clear();
+    clearRoute();
+    updateRouteToolbar();
     clearMarkers();
-    addrListBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">엑셀 파일을 업로드해 주세요.</td></tr>';
+    addrListBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px;">엑셀 파일을 업로드해 주세요.</td></tr>';
     addrCountEl.textContent = '0';
     optionBox.classList.remove('visible');
     fileInput.value = '';
