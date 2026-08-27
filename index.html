@@ -90,6 +90,8 @@
 
   .bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
   .btn-export { padding: 12px 20px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
+  .btn-map-html { background: #7c3aed; }
+  .btn-map-html:hover { background: #6d28d9; }
   .btn-export:hover { background: #059669; }
   .btn-export:disabled { background: #cbd5e1; cursor: not-allowed; }
   #status { font-size: 0.85rem; font-weight: 700; color: #2563eb; }
@@ -167,7 +169,10 @@
 
   <div class="bottom-actions">
     <span id="status"></span>
-    <button class="btn-export" id="export-btn" onclick="exportResults()" disabled>⬇ 좌표 포함 엑셀로 다운로드</button>
+    <div style="display:flex; gap:10px;">
+      <button class="btn-export btn-map-html" id="map-html-btn" onclick="exportMapHtml()" disabled>🗺️ 지도를 HTML로 다운로드</button>
+      <button class="btn-export" id="export-btn" onclick="exportResults()" disabled>⬇ 좌표 포함 엑셀로 다운로드</button>
+    </div>
   </div>
 </div>
 
@@ -181,6 +186,7 @@
   const addrListBody = document.getElementById('addr-list-body');
   const addrCountEl = document.getElementById('addr-count');
   const exportBtn = document.getElementById('export-btn');
+  const mapHtmlBtn = document.getElementById('map-html-btn');
   const statusEl = document.getElementById('status');
   const resetBtn = document.getElementById('reset-btn');
 
@@ -250,6 +256,7 @@
 
     startBtn.disabled = true;
     exportBtn.disabled = true;
+    mapHtmlBtn.disabled = true;
     clearMarkers();
     addrListBody.innerHTML = '';
 
@@ -277,6 +284,7 @@
     statusEl.style.color = successCount === items.length ? '#166534' : '#d97706';
     startBtn.disabled = false;
     exportBtn.disabled = items.length === 0;
+    mapHtmlBtn.disabled = successCount === 0;
   }
 
   function geocodeOne(item, idx) {
@@ -406,6 +414,89 @@
     XLSX.writeFile(wb, '주소_좌표_결과.xlsx');
   }
 
+  // 지도를 "네이버 API/앱 없이도 누구나 열어볼 수 있는" 독립형 HTML로 내보낸다.
+  // 네이버 지도 JS는 이 사이트의 등록된 도메인에서만 동작하므로, 여기서는 대신
+  // 오픈소스 Leaflet + OpenStreetMap(별도 인증키·앱 설치 불필요)으로 지도를 새로 그리고,
+  // 각 마커에는 "네이버 지도에서 보기" 웹 링크만 달아준다 (클릭 시에만 네이버로 이동).
+  function exportMapHtml() {
+    const okItems = items.filter(it => it.status === 'ok');
+    if (okItems.length === 0) { alert('지도에 표시된 위치가 없습니다. 먼저 지오코딩을 완료해 주세요.'); return; }
+
+    const dataJson = JSON.stringify(okItems.map(it => ({
+      name: it.name || it.address,
+      address: it.address,
+      lat: it.lat,
+      lng: it.lng
+    })));
+
+    const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주소 위치 지도 (${okItems.length}곳)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background: #f8fafc; }
+  header { background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 20px; }
+  header h1 { margin: 0; font-size: 1.1rem; color: #0f172a; }
+  header p { margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; }
+  #map { width: 100%; height: calc(100vh - 64px); }
+  .popup-box { font-size: 0.85rem; line-height: 1.5; }
+  .popup-box .p-title { font-weight: 700; margin-bottom: 4px; color: #0f172a; }
+  .popup-box a { display: inline-block; margin-top: 6px; padding: 5px 10px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>📍 주소 위치 지도 (총 ${okItems.length}곳)</h1>
+    <p>이 지도는 별도 앱 설치 없이 인터넷 브라우저만 있으면 볼 수 있습니다. 마커를 클릭하면 네이버 지도로 길찾기를 열 수 있습니다.</p>
+  </header>
+  <div id="map"></div>
+  <script>
+    const points = ${dataJson};
+    const map = L.map('map');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const markers = [];
+    points.forEach(p => {
+      const marker = L.marker([p.lat, p.lng]).addTo(map);
+      const webUrl = 'https://map.naver.com/p/search/' + encodeURIComponent(p.address);
+      marker.bindPopup(
+        '<div class="popup-box"><div class="p-title">' + escapeHtml(p.name) + '</div>' +
+        '<div>' + escapeHtml(p.address) + '</div>' +
+        '<a href="' + webUrl + '" target="_blank" rel="noopener noreferrer">🌐 네이버 지도에서 길찾기</a></div>'
+      );
+      markers.push(marker);
+    });
+
+    if (points.length === 1) {
+      map.setView([points[0].lat, points[0].lng], 16);
+    } else {
+      map.fitBounds(L.featureGroup(markers).getBounds(), { padding: [30, 30] });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  <\/script>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '주소_지도.html';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function resetAll() {
     if (items.length === 0 && rawRows.length === 0) return;
     rawRows = [];
@@ -418,6 +509,7 @@
     fileInput.value = '';
     statusEl.textContent = '';
     exportBtn.disabled = true;
+    mapHtmlBtn.disabled = true;
     resetBtn.disabled = true;
     if (map) { map.setCenter(new naver.maps.LatLng(36.2758, 126.9099)); map.setZoom(12); }
   }
