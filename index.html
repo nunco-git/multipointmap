@@ -1,805 +1,462 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>통합 기관 자료 취합 및 설문 시스템</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>엑셀 주소 → 네이버 지도 표시기</title>
 
-  <!-- SheetJS & CryptoJS CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<!-- 엑셀 읽기/쓰기 -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- 네이버 지도 API v3 + Geocoder 서브모듈 (Client ID는 nunco-git.github.io/multipointmap/ 도메인에만 등록되어 있음) -->
+<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=bgg27fnbf8&submodules=geocoder"></script>
 
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Malgun Gothic', sans-serif;
-      margin: 0; padding: 30px 15px;
-      background-color: #f1f5f9; color: #1e293b;
-      display: flex; justify-content: center; min-height: 100vh;
-      user-select: none; -webkit-user-select: none;
-    }
-    .container {
-      width: 100%; max-width: 900px;
-      background: white; border-radius: 16px;
-      padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    }
-    .header { text-align: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 20px; }
-    .header h1 { font-size: 22px; color: #0f172a; margin: 0 0 6px 0; }
-    .header p { color: #64748b; font-size: 13px; margin: 0; }
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 24px; color: #334155; }
 
-    .card { max-width: 440px; margin: 20px auto; }
-    .form-group { margin-bottom: 14px; text-align: left; }
-    .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #334155; }
-    .form-group input, .form-group select {
-      width: 100%; padding: 10px; font-size: 14px;
-      border: 1px solid #cbd5e1; border-radius: 8px; outline: none;
-    }
-    .form-group input:focus { border-color: #2563eb; }
+  .app-container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.05); padding: 32px; }
 
-    .btn {
-      width: 100%; padding: 10px; background: #2563eb; color: white;
-      border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer;
-    }
-    .btn:hover { background: #1d4ed8; }
-    .btn-secondary { background: #64748b; }
-    .btn-secondary:hover { background: #475569; }
-    .btn-excel { background: #16a34a; }
-    .btn-excel:hover { background: #15803d; }
-    .btn-danger { background: #ef4444; }
-    .btn-danger:hover { background: #dc2626; }
-    .btn-sm { width: auto; padding: 6px 12px; font-size: 12px; display: inline-block; }
+  h2 { margin: 0 0 4px 0; color: #0f172a; font-size: 1.5rem; display: flex; align-items: center; gap: 8px; }
+  .subtitle { color: #64748b; font-size: 0.9rem; margin: 0 0 20px 0; }
 
-    .q-card {
-      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
-      padding: 16px; margin-bottom: 12px; text-align: left;
-    }
-    
-    .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
-    .tab-btn {
-      padding: 8px 14px; background: none; border: none; font-size: 13px; font-weight: bold;
-      color: #64748b; cursor: pointer; border-bottom: 2px solid transparent;
-    }
-    .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+  .security-banner {
+    background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+    border: 1px solid #bbf7d0;
+    border-radius: 14px;
+    padding: 16px 18px;
+    color: #166534;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.55;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04), 0 1px 2px rgba(16, 24, 40, 0.03);
+  }
+  .security-banner-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .security-banner strong { font-size: 1rem; color: #15803d; letter-spacing: -0.2px; }
+  .security-features { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .security-features li {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(187, 247, 208, 0.7);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.83rem;
+  }
+  .security-features .feat-icon {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: #16a34a; color: white; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);
+  }
+  .security-features strong { display: inline; font-size: 0.83rem; margin: 0; color: #14532d; }
+  .security-features .feat-desc { color: #15803d; font-weight: 700; }
 
-    .user-info-bar {
-      display: flex; justify-content: space-between; align-items: center;
-      background: #eff6ff; padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;
-    }
+  .btn-reset { padding: 5px 14px; background: white; border: 1.5px solid #ef4444; color: #ef4444; border-radius: 20px; font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 0.15s, color 0.15s; }
+  .btn-reset:hover { background: #ef4444; color: white; }
+  .btn-reset:disabled { border-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; background: white; }
 
-    .mode-select-container { display: flex; gap: 16px; margin: 20px 0; }
-    .mode-card {
-      flex: 1; border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px;
-      text-align: center; cursor: pointer; transition: all 0.2s; background: #fff;
-    }
-    .mode-card:hover { border-color: #2563eb; background-color: #f0f6ff; }
-    .mode-card.selected { border-color: #2563eb; background-color: #eff6ff; box-shadow: 0 4px 12px rgba(37,99,235,0.15); }
-    .mode-card h3 { margin: 0 0 8px 0; font-size: 16px; color: #1e293b; }
-    .mode-card p { margin: 0; font-size: 12px; color: #64748b; line-height: 1.4; }
+  .drop-zone { border: 2px dashed #3b82f6; border-radius: 12px; padding: 22px; text-align: center; background-color: #eff6ff; cursor: pointer; margin-bottom: 16px; font-size: 0.95rem; transition: background-color 0.2s, border-color 0.2s; }
+  .drop-zone:hover, .drop-zone.highlight { background-color: #dbeafe; border-color: #1d4ed8; }
+  input[type="file"] { display: none; }
 
-    .grid-container {
-      overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 8px;
-      max-height: 400px; margin-bottom: 16px;
-    }
-    table.data-grid { width: 100%; border-collapse: collapse; background-color: white; font-size: 13px; }
-    table.data-grid th, table.data-grid td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
-    table.data-grid th { background-color: #f1f5f9; color: #334155; font-weight: bold; position: sticky; top: 0; z-index: 10; }
-    table.data-grid td input { width: 100%; border: none; outline: none; background: transparent; font-size: 13px; }
-    table.data-grid td input:focus { background-color: #e0f2fe; }
+  .option-box { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 14px 18px; border-radius: 10px; margin-bottom: 18px; display: none; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .option-box.visible { display: flex; }
+  .option-box .opt-field { display: flex; align-items: center; gap: 8px; }
+  .option-box label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+  .option-box select { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: white; }
+  .btn-start { padding: 8px 18px; background: #2563eb; color: white; border: none; border-radius: 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+  .btn-start:hover { background: #1d4ed8; }
+  .btn-start:disabled { background: #cbd5e1; cursor: not-allowed; }
 
-    .hidden { display: none !important; }
-  </style>
+  .editor-layout { display: flex; flex-wrap: nowrap; align-items: stretch; gap: 0; margin-bottom: 8px; min-height: 480px; }
+  .editor-resizer { flex: 0 0 14px; width: 14px; background: #f1f5f9; cursor: col-resize; margin: 0 4px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; user-select: none; align-self: stretch; }
+  .editor-resizer::before { content: '⋮'; color: #94a3b8; font-size: 14px; font-weight: bold; }
+  .editor-resizer:hover, .editor-resizer.resizing { background: #2563eb; }
+  .editor-resizer:hover::before, .editor-resizer.resizing::before { color: white; }
+
+  .list-panel { flex: 0 0 calc(40% - 7px); min-width: 300px; max-width: 70%; border: 1px solid #e2e8f0; border-radius: 10px; background: #fafafa; height: 100%; min-height: 300px; max-height: 78vh; overflow: auto; padding: 12px; resize: vertical; }
+  .list-panel h3 { margin: 0 0 8px 0; font-size: 1rem; }
+  table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.82rem; text-align: left; }
+  th { background: #f8fafc; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; position: sticky; top: 0; white-space: nowrap; }
+  td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tr.addr-row { cursor: pointer; }
+  tr.addr-row:hover { background: #eff6ff; }
+  tr.addr-row.selected { background: #dbeafe; }
+  .status-ok { color: #166534; font-weight: 700; }
+  .status-err { color: #ef4444; font-weight: 700; }
+  .status-pending { color: #94a3b8; }
+
+  .map-panel { flex: 1 1 calc(60% - 7px); min-width: 320px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; height: 100%; min-height: 300px; max-height: 78vh; }
+  #map { width: 100%; height: 100%; min-height: 300px; }
+
+  .bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+  .btn-export { padding: 12px 20px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
+  .btn-export:hover { background: #059669; }
+  .btn-export:disabled { background: #cbd5e1; cursor: not-allowed; }
+  #status { font-size: 0.85rem; font-weight: 700; color: #2563eb; }
+
+  .infowindow-box { padding: 10px 12px; font-size: 0.82rem; line-height: 1.5; max-width: 240px; }
+  .infowindow-box .iw-title { font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+  .infowindow-box .iw-btns { display: flex; gap: 6px; margin-top: 8px; }
+  .infowindow-box .iw-btns a { flex: 1; text-align: center; padding: 6px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-decoration: none; }
+  .iw-app { background: #2563eb; color: white; }
+  .iw-web { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
+
+  @media (max-width: 900px) {
+    .editor-layout { flex-direction: column; }
+    .list-panel, .map-panel { flex-basis: auto !important; max-width: 100%; width: 100%; }
+    .list-panel { height: 280px; }
+    .map-panel { height: 400px; }
+    .editor-resizer { display: none; }
+  }
+</style>
 </head>
 <body>
 
-  <div class="container">
-    
-    <!-- 1. 메인 로그인 / 회원가입 / 기관 접속 -->
-    <div id="viewLogin" class="card">
-      <div class="header">
-        <h1>통합 기관 자료 취합 시스템</h1>
-        <p>담당자 로그인, 자율 회원가입 또는 기관 제출 페이지입니다.</p>
-      </div>
+<div class="app-container">
+  <h2>📍 엑셀 주소 → 네이버 지도 표시기</h2>
+  <p class="subtitle">엑셀의 주소 목록을 네이버 지도에 한 번에 표시하고, 각 위치로 바로 길찾기를 연결합니다.</p>
 
-      <div class="tabs" style="justify-content: center;">
-        <button class="tab-btn active" id="tabLoginBtn" onclick="switchLoginMode('login')">로그인</button>
-        <button class="tab-btn" id="tabRegisterBtn" onclick="switchLoginMode('register')">담당자 계정생성</button>
-        <button class="tab-btn" id="tabSurveyBtn" onclick="switchLoginMode('surveyAccess')">기관 참여/제출</button>
-      </div>
-
-      <!-- 로그인 -->
-      <form id="formLogin" onsubmit="handleLogin(event)">
-        <div class="form-group">
-          <label>아이디</label>
-          <input type="text" id="loginId" placeholder="아이디 입력" required />
-        </div>
-        <div class="form-group">
-          <label>비밀번호</label>
-          <input type="password" id="loginPw" placeholder="비밀번호 입력" required />
-        </div>
-        <button type="submit" class="btn">로그인</button>
-      </form>
-
-      <!-- 담당자 자율 회원가입 -->
-      <form id="formRegister" class="hidden" onsubmit="handleRegister(event)">
-        <div class="form-group">
-          <label>사용할 아이디</label>
-          <input type="text" id="regId" placeholder="예: manager01" required />
-        </div>
-        <div class="form-group">
-          <label>담당자 성명 / 부서명</label>
-          <input type="text" id="regName" placeholder="예: 홍길동 (행정과)" required />
-        </div>
-        <div class="form-group">
-          <label>비밀번호</label>
-          <input type="password" id="regPw" placeholder="비밀번호 입력" required />
-        </div>
-        <button type="submit" class="btn">계정 즉시 생성하기</button>
-      </form>
-
-      <!-- 기관 접속 -->
-      <form id="formSurveyAccess" class="hidden" onsubmit="handleSurveyAccess(event)">
-        <div class="form-group">
-          <label>제출 기관명</label>
-          <input type="text" id="accessAgencyName" placeholder="예: 부여읍 행정복지센터" required />
-        </div>
-        <div class="form-group">
-          <label>담당자 아이디</label>
-          <input type="text" id="accessManagerId" placeholder="안내받은 담당자 ID" required />
-        </div>
-        <div class="form-group">
-          <label>제출 전용 비밀번호</label>
-          <input type="password" id="accessSurveyPw" placeholder="안내받은 제출 비밀번호 입력" required />
-        </div>
-        <button type="submit" class="btn">작성/제출 시작하기</button>
-      </form>
-
-      <div style="margin-top:20px; background:#f8fafc; padding:10px; border-radius:6px; font-size:11px; color:#64748b; text-align:center;">
-        <strong>[기본 관리자 계정]</strong> superadmin / admin1234
-      </div>
+  <div class="security-banner">
+    <div class="security-banner-header">
+      <strong>🔒 개인정보 및 데이터 보안 100% 보장</strong>
+      <button class="btn-reset" id="reset-btn" onclick="resetAll()" disabled>🗑️ 초기화</button>
     </div>
-
-    <!-- 2. 기관용 제출 화면 -->
-    <div id="viewSurvey" class="hidden">
-      <div class="user-info-bar">
-        <span>🏢 제출 기관: <strong id="displayAgencyName"></strong> (담당자 ID: <span id="displayManagerId"></span>)</span>
-        <button class="btn btn-secondary btn-sm" onclick="exitSurvey()">나가기</button>
-      </div>
-
-      <div class="header">
-        <h1 id="surveyViewTitle">자료 제출</h1>
-        <p id="surveyViewDesc">항목에 맞춰 내용을 작성 후 제출해주세요.</p>
-      </div>
-
-      <!-- (A) 자체 설문 응답 폼 -->
-      <form id="customSurveyForm" class="hidden" onsubmit="submitCustomSurvey(event)">
-        <div id="surveyQuestionsContainer"></div>
-        <button type="submit" class="btn" style="margin-top:15px;">설문 답변 제출하기</button>
-      </form>
-
-      <!-- (B) 엑셀 입력 및 붙여넣기 폼 -->
-      <div id="excelGridForm" class="hidden">
-        <div class="grid-container">
-          <table class="data-grid">
-            <thead><tr id="surveyGridHeader"></tr></thead>
-            <tbody id="surveyGridBody"></tbody>
-          </table>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <button class="btn btn-secondary btn-sm" onclick="addSurveyGridRow()">+ 행 추가</button>
-          <button class="btn btn-excel btn-sm" style="width:200px;" onclick="submitExcelGridData()">최종 내역 제출하기</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. 업무 담당자 전용 화면 -->
-    <div id="viewManager" class="hidden">
-      <div class="user-info-bar">
-        <span>👤 업무 담당자: <strong id="managerNameDisplay"></strong></span>
-        <div>
-          <button class="btn btn-secondary btn-sm" onclick="openPasswordChangeModal()">🔑 로그인 비밀번호 변경</button>
-          <button class="btn btn-secondary btn-sm" onclick="logout()">로그아웃</button>
-        </div>
-      </div>
-
-      <!-- 기관 접속 제출 전용 비밀번호 설정 -->
-      <div class="q-card" style="background:#f0fdf4; border-color:#bbf7d0; margin-bottom: 20px;">
-        <h4 style="color:#166534; margin-top:0;">🔒 기관 제출 접속용 비밀번호 설정</h4>
-        <p style="font-size:12px; color:#15803d; margin-bottom:8px;">각 기관 제출자가 접속할 때 입력해야 하는 암호입니다.</p>
-        <div class="form-group" style="margin-bottom:8px;">
-          <input type="text" id="surveyPasswordInput" placeholder="예: pass1234" />
-        </div>
-        <button class="btn btn-sm btn-excel" onclick="saveSurveyPassword()">제출 비밀번호 저장</button>
-      </div>
-
-      <!-- 취합 방식 선택 영역 -->
-      <div class="q-card">
-        <h4 style="margin-top:0;">📌 취합 방식 선택</h4>
-        <p style="font-size:12px; color:#64748b; margin-bottom:12px;">기관 제출자에게 어떠한 방식으로 자료를 입력받을지 선택하세요.</p>
-        <div class="mode-select-container">
-          <div class="mode-card" id="modeCardSurvey" onclick="setWorkMode('survey')">
-            <h3>📝 자체 설문 방식</h3>
-            <p>담당자가 주관식/객관식 질문을 등록하고, 기관에서 질문별로 답변을 입력합니다.</p>
-          </div>
-          <div class="mode-card" id="modeCardExcel" onclick="setWorkMode('excel')">
-            <h3>📊 엑셀 시트 방식</h3>
-            <p>담당자가 컬럼(항목)을 지정하고, 기관에서 엑셀을 복사·붙여넣기(Ctrl+V)하여 제출합니다.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 탭 컨트롤 -->
-      <div class="tabs">
-        <button class="tab-btn active" id="tabManagerManage" onclick="switchManagerTab('manage')">⚙️ 취합 양식/질문 관리</button>
-        <button class="tab-btn" id="tabManagerResult" onclick="switchManagerTab('responses')">📊 응답 취합 및 엑셀 다운로드</button>
-      </div>
-
-      <!-- 1) 양식 관리 영역 -->
-      <div id="managerTabManage">
-        <!-- 자체 설문 관리 Panel -->
-        <div id="panelManageSurvey" class="hidden">
-          <div class="q-card" style="background:#eff6ff; border-color:#bfdbfe;">
-            <h4 style="color:#1e40af; margin-top:0;">➕ 새 설문 질문 추가</h4>
-            <div class="form-group">
-              <label>질문 제목</label>
-              <input type="text" id="newQTitle" placeholder="예: 2026년도 담당자 인원수" />
-            </div>
-            <div class="form-group">
-              <label>질문 유형</label>
-              <select id="newQType" onchange="toggleOptionInput()">
-                <option value="text">주관식 (단답/장문)</option>
-                <option value="radio">객관식 (단일 선택)</option>
-              </select>
-            </div>
-            <div class="form-group hidden" id="optionGroup">
-              <label>객관식 옵션 (쉼표 ','로 구분)</label>
-              <input type="text" id="newQOptions" placeholder="예: 완료, 진행중, 미착수" />
-            </div>
-            <button type="button" class="btn btn-sm" onclick="addQuestion()">질문 추가</button>
-          </div>
-          <h3>등록된 질문 목록</h3>
-          <div id="managerQuestionList"></div>
-        </div>
-
-        <!-- 엑셀 시트 관리 Panel -->
-        <div id="panelManageExcel" class="hidden">
-          <div class="q-card">
-            <h4 style="margin-top:0;">엑셀 컬럼(항목) 설정</h4>
-            <p style="font-size:12px; color:#64748b;">기관에서 입력받을 항목명을 쉼표(,)로 구분하여 입력하세요.</p>
-            <div class="form-group">
-              <input type="text" id="columnConfigInput" placeholder="예: 순번, 기관명, 사업명, 예산액(천원), 비고" />
-            </div>
-            <button class="btn btn-sm btn-excel" onclick="saveColumnConfig()">서식 변경 저장</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2) 응답 결과 영역 -->
-      <div id="managerTabResponses" class="hidden">
-        <button class="btn btn-excel btn-sm" style="margin-bottom:12px;" onclick="exportToExcel()">📥 취합 응답 엑셀 다운로드 (.xlsx)</button>
-        <div style="overflow-x: auto;">
-          <table class="data-grid" id="responseTable">
-            <thead><tr id="responseTableHeader"></tr></thead>
-            <tbody id="responseTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4. 전체 관리자 전용 화면 -->
-    <div id="viewSuperAdmin" class="hidden">
-      <div class="user-info-bar">
-        <span>⚙️ <strong>전체 관리자 모드</strong></span>
-        <div>
-          <button class="btn btn-secondary btn-sm" onclick="openPasswordChangeModal()">🔑 로그인 비밀번호 변경</button>
-          <button class="btn btn-secondary btn-sm" onclick="logout()">로그아웃</button>
-        </div>
-      </div>
-
-      <h3>👤 등록된 업무 담당자 계정 관리</h3>
-      <div style="overflow-x: auto;">
-        <table class="data-grid">
-          <thead>
-            <tr>
-              <th>아이디</th>
-              <th>성명/부서</th>
-              <th>설정 모드</th>
-              <th>제출 암호 설정</th>
-              <th>비밀번호 변경</th>
-              <th>계정 삭제</th>
-            </tr>
-          </thead>
-          <tbody id="superAdminTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-
+    <ul class="security-features">
+      <li><span class="feat-icon">🌐</span><span><strong>외부 서버 전송 ZERO</strong> <span class="feat-desc">: 주소는 네이버 지도 API 조회에만 쓰이고 별도로 저장되지 않음</span></span></li>
+      <li><span class="feat-icon">📍</span><span><strong>자동 좌표 변환</strong> <span class="feat-desc">: 엑셀 주소 목록을 한 번에 지도 위에 표시</span></span></li>
+      <li><span class="feat-icon">🧭</span><span><strong>길찾기 연동</strong> <span class="feat-desc">: 마커 클릭 시 네이버 지도·내비게이션으로 바로 연결</span></span></li>
+    </ul>
   </div>
 
-  <script>
-    // 보안 단축키 및 우클릭 방지
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', e => {
-      if (e.keyCode === 123 || 
-         (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) ||
-         (e.ctrlKey && (e.keyCode === 85 || e.keyCode === 83))) {
-        e.preventDefault();
-        return false;
+  <div class="drop-zone" id="drop-zone">
+    📁 <strong>클릭하거나 엑셀(.xlsx) 파일을 이곳으로 끌어다 놓으세요</strong>
+    <input type="file" id="file-input" accept=".xlsx, .xls" style="display:none;">
+  </div>
+
+  <div class="option-box" id="option-box">
+    <div class="opt-field">
+      <label>주소가 있는 열</label>
+      <select id="addr-col-select"></select>
+    </div>
+    <div class="opt-field">
+      <label>표시 이름 열 (선택)</label>
+      <select id="name-col-select"><option value="">— 주소로 표시 —</option></select>
+    </div>
+    <button class="btn-start" id="start-btn" onclick="startGeocoding()">🚀 지도에 표시 시작</button>
+  </div>
+
+  <div class="editor-layout">
+    <div class="list-panel" id="left-panel">
+      <h3>📋 주소 목록 (<span id="addr-count">0</span>)</h3>
+      <table>
+        <thead>
+          <tr><th style="width:36px;">No.</th><th>이름/주소</th><th style="width:64px;">상태</th></tr>
+        </thead>
+        <tbody id="addr-list-body">
+          <tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">엑셀 파일을 업로드해 주세요.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="editor-resizer" id="editor-resizer"></div>
+
+    <div class="map-panel" id="right-panel">
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <div class="bottom-actions">
+    <span id="status"></span>
+    <button class="btn-export" id="export-btn" onclick="exportResults()" disabled>⬇ 좌표 포함 엑셀로 다운로드</button>
+  </div>
+</div>
+
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const optionBox = document.getElementById('option-box');
+  const addrColSelect = document.getElementById('addr-col-select');
+  const nameColSelect = document.getElementById('name-col-select');
+  const startBtn = document.getElementById('start-btn');
+  const addrListBody = document.getElementById('addr-list-body');
+  const addrCountEl = document.getElementById('addr-count');
+  const exportBtn = document.getElementById('export-btn');
+  const statusEl = document.getElementById('status');
+  const resetBtn = document.getElementById('reset-btn');
+
+  let rawRows = [];       // 엑셀 원본 행(객체 배열, 헤더 기준)
+  let headers = [];       // 엑셀 헤더 목록
+  let items = [];         // { name, address, status, lat, lng, marker }
+  let map = null;
+  let markers = [];
+  let activeInfoWindow = null;
+  let selectedIndex = null;
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => {
+    dropZone.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); });
+  });
+  dropZone.addEventListener('dragenter', () => dropZone.classList.add('highlight'));
+  dropZone.addEventListener('dragover', () => dropZone.classList.add('highlight'));
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('highlight'));
+  dropZone.addEventListener('drop', (e) => {
+    dropZone.classList.remove('highlight');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  function initMap() {
+    if (map || typeof naver === 'undefined') return;
+    map = new naver.maps.Map('map', {
+      center: new naver.maps.LatLng(36.2758, 126.9099), // 부여군 대략 위치를 기본값으로
+      zoom: 12
+    });
+  }
+  window.addEventListener('DOMContentLoaded', initMap);
+
+  async function handleFile(file) {
+    if (!file) return;
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    if (rawRows.length === 0) {
+      alert('엑셀에서 데이터를 찾지 못했습니다. 첫 행이 제목(헤더)인지 확인해 주세요.');
+      return;
+    }
+    headers = Object.keys(rawRows[0]);
+
+    addrColSelect.innerHTML = headers.map(h => `<option value="${h}">${h}</option>`).join('');
+    nameColSelect.innerHTML = '<option value="">— 주소로 표시 —</option>' + headers.map(h => `<option value="${h}">${h}</option>`).join('');
+
+    // 열 이름에 "주소"가 포함되어 있으면 자동 선택
+    const guess = headers.find(h => h.includes('주소')) || headers[0];
+    addrColSelect.value = guess;
+
+    optionBox.classList.add('visible');
+    resetBtn.disabled = false;
+    statusEl.textContent = `${rawRows.length}개 행을 불러왔습니다. 주소 열을 확인하고 시작해 주세요.`;
+    statusEl.style.color = '#2563eb';
+  }
+
+  async function startGeocoding() {
+    if (typeof naver === 'undefined' || !naver.maps.Service) {
+      alert('네이버 지도 API를 불러오지 못했습니다. 이 페이지가 등록된 정식 배포 주소(https://nunco-git.github.io/multipointmap/)에서 열려 있는지 확인해 주세요.');
+      return;
+    }
+    const addrCol = addrColSelect.value;
+    const nameCol = nameColSelect.value;
+    if (!addrCol) { alert('주소가 있는 열을 선택해 주세요.'); return; }
+
+    startBtn.disabled = true;
+    exportBtn.disabled = true;
+    clearMarkers();
+    addrListBody.innerHTML = '';
+
+    items = rawRows.map(row => ({
+      name: nameCol ? String(row[nameCol] || '').trim() : '',
+      address: String(row[addrCol] || '').trim(),
+      status: 'pending',
+      lat: null, lng: null
+    })).filter(it => it.address !== '');
+
+    addrCountEl.textContent = items.length;
+    items.forEach((it, idx) => addrListBody.appendChild(buildRow(it, idx)));
+
+    let successCount = 0;
+    for (let i = 0; i < items.length; i++) {
+      statusEl.textContent = `⚡ 지오코딩 중... (${i + 1}/${items.length})`;
+      await geocodeOne(items[i], i);
+      if (items[i].status === 'ok') successCount++;
+      updateRowStatus(i);
+      await new Promise(r => setTimeout(r, 180)); // 요청 폭주로 인한 429 방지용 딜레이
+    }
+
+    fitMapToMarkers();
+    statusEl.textContent = `✅ 완료 — 성공 ${successCount}개 / 실패 ${items.length - successCount}개`;
+    statusEl.style.color = successCount === items.length ? '#166534' : '#d97706';
+    startBtn.disabled = false;
+    exportBtn.disabled = items.length === 0;
+  }
+
+  function geocodeOne(item, idx) {
+    return new Promise((resolve) => {
+      naver.maps.Service.geocode({ query: item.address }, (status, response) => {
+        if (status !== naver.maps.Service.Status.OK || !response.v2.addresses.length) {
+          item.status = 'err';
+          resolve();
+          return;
+        }
+        const result = response.v2.addresses[0];
+        item.lat = parseFloat(result.y);
+        item.lng = parseFloat(result.x);
+        item.status = 'ok';
+        addMarker(item, idx);
+        resolve();
+      });
+    });
+  }
+
+  function addMarker(item, idx) {
+    const position = new naver.maps.LatLng(item.lat, item.lng);
+    const marker = new naver.maps.Marker({ position, map, title: item.name || item.address });
+    const label = escapeHtml(item.name || item.address);
+    const addrText = escapeHtml(item.address);
+    const appUrl = `nmap://place?lat=${item.lat}&lng=${item.lng}&name=${encodeURIComponent(item.name || item.address)}&appname=${encodeURIComponent(location.href)}`;
+    const webUrl = `https://map.naver.com/p/search/${encodeURIComponent(item.address)}`;
+    const iw = new naver.maps.InfoWindow({
+      content: `<div class="infowindow-box">
+        <div class="iw-title">${label}</div>
+        <div>${addrText}</div>
+        <div class="iw-btns">
+          <a class="iw-app" href="${appUrl}">📱 앱으로 길찾기</a>
+          <a class="iw-web" href="${webUrl}" target="_blank" rel="noopener noreferrer">🌐 웹에서 보기</a>
+        </div>
+      </div>`
+    });
+    naver.maps.Event.addListener(marker, 'click', () => {
+      if (activeInfoWindow) activeInfoWindow.close();
+      iw.open(map, marker);
+      activeInfoWindow = iw;
+      selectRow(idx);
+    });
+    markers.push({ marker, iw, idx });
+  }
+
+  function clearMarkers() {
+    markers.forEach(m => m.marker.setMap(null));
+    markers = [];
+    if (activeInfoWindow) { activeInfoWindow.close(); activeInfoWindow = null; }
+  }
+
+  function fitMapToMarkers() {
+    const ok = markers.filter(m => m);
+    if (ok.length === 0) return;
+    if (ok.length === 1) {
+      map.setCenter(ok[0].marker.getPosition());
+      map.setZoom(16);
+      return;
+    }
+    const bounds = new naver.maps.LatLngBounds();
+    ok.forEach(m => bounds.extend(m.marker.getPosition()));
+    map.fitBounds(bounds);
+  }
+
+  function buildRow(item, idx) {
+    const tr = document.createElement('tr');
+    tr.className = 'addr-row';
+    tr.dataset.idx = idx;
+    tr.onclick = () => {
+      selectRow(idx);
+      const found = markers.find(m => m.idx === idx);
+      if (found) {
+        map.setCenter(found.marker.getPosition());
+        map.setZoom(17);
+        if (activeInfoWindow) activeInfoWindow.close();
+        found.iw.open(map, found.marker);
+        activeInfoWindow = found.iw;
+      }
+    };
+    const tdNum = document.createElement('td');
+    tdNum.textContent = idx + 1;
+    const tdName = document.createElement('td');
+    tdName.textContent = item.name || item.address;
+    tdName.title = item.address;
+    const tdStatus = document.createElement('td');
+    tdStatus.id = `status-${idx}`;
+    tdStatus.innerHTML = '<span class="status-pending">대기</span>';
+    tr.appendChild(tdNum);
+    tr.appendChild(tdName);
+    tr.appendChild(tdStatus);
+    return tr;
+  }
+
+  function updateRowStatus(idx) {
+    const el = document.getElementById(`status-${idx}`);
+    if (!el) return;
+    const item = items[idx];
+    el.innerHTML = item.status === 'ok'
+      ? '<span class="status-ok">✅ 성공</span>'
+      : '<span class="status-err">❌ 실패</span>';
+  }
+
+  function selectRow(idx) {
+    selectedIndex = idx;
+    document.querySelectorAll('.addr-row').forEach(r => r.classList.remove('selected'));
+    const row = document.querySelector(`.addr-row[data-idx="${idx}"]`);
+    if (row) { row.classList.add('selected'); row.scrollIntoView({ block: 'nearest' }); }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function exportResults() {
+    if (items.length === 0) return;
+    const exportRows = items.map(it => ({
+      이름: it.name,
+      주소: it.address,
+      상태: it.status === 'ok' ? '성공' : '실패',
+      위도: it.lat ?? '',
+      경도: it.lng ?? ''
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '결과');
+    XLSX.writeFile(wb, '주소_좌표_결과.xlsx');
+  }
+
+  function resetAll() {
+    if (items.length === 0 && rawRows.length === 0) return;
+    rawRows = [];
+    headers = [];
+    items = [];
+    clearMarkers();
+    addrListBody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px;">엑셀 파일을 업로드해 주세요.</td></tr>';
+    addrCountEl.textContent = '0';
+    optionBox.classList.remove('visible');
+    fileInput.value = '';
+    statusEl.textContent = '';
+    exportBtn.disabled = true;
+    resetBtn.disabled = true;
+    if (map) { map.setCenter(new naver.maps.LatLng(36.2758, 126.9099)); map.setZoom(12); }
+  }
+
+  /* 목록 ↔ 지도 좌우 리사이저 */
+  (function initEditorResizer() {
+    const resizerEl = document.getElementById('editor-resizer');
+    const leftEl = document.getElementById('left-panel');
+    const rightEl = document.getElementById('right-panel');
+    const layoutEl = document.querySelector('.editor-layout');
+    let isResizing = false;
+    resizerEl.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      resizerEl.classList.add('resizing');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const rect = layoutEl.getBoundingClientRect();
+      const minWidth = 300;
+      const maxWidth = rect.width - minWidth - resizerEl.offsetWidth;
+      if (maxWidth <= minWidth) return;
+      const newLeftWidth = Math.max(minWidth, Math.min(e.clientX - rect.left, maxWidth));
+      leftEl.style.flex = `0 0 ${newLeftWidth}px`;
+      rightEl.style.flex = `1 1 auto`;
+      if (map) naver.maps.Event.trigger(map, 'resize');
+    });
+    document.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        resizerEl.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
       }
     });
+  })();
+</script>
 
-    const DEFAULT_MANAGERS = {
-      "superadmin": { name: "전체관리자", pw: "admin1234", role: "superadmin", surveyPw: "", mode: "survey" }
-    };
-    const DEFAULT_COLUMNS = ["순번", "사업/업무명", "예산액(천원)", "추진일정", "비고"];
-
-    let currentUser = null; 
-    let activeSurveyInfo = null; 
-
-    function getStoredData(key, defaultVal) {
-      const stored = localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : defaultVal;
-    }
-    function setStoredData(key, data) {
-      localStorage.setItem(key, JSON.stringify(data));
-    }
-
-    let managers = getStoredData('sys_managers_v5', DEFAULT_MANAGERS);
-    let questions = getStoredData('sys_questions_v5', {}); 
-    let columnsConfig = getStoredData('sys_columns_v5', {}); 
-    let responses = getStoredData('sys_responses_v5', {}); 
-
-    // 로그인 탭 스위치
-    function switchLoginMode(mode) {
-      document.getElementById('tabLoginBtn').classList.toggle('active', mode === 'login');
-      document.getElementById('tabRegisterBtn').classList.toggle('active', mode === 'register');
-      document.getElementById('tabSurveyBtn').classList.toggle('active', mode === 'surveyAccess');
-
-      document.getElementById('formLogin').classList.toggle('hidden', mode !== 'login');
-      document.getElementById('formRegister').classList.toggle('hidden', mode !== 'register');
-      document.getElementById('formSurveyAccess').classList.toggle('hidden', mode !== 'surveyAccess');
-    }
-
-    // 담당자 계정 자율 생성
-    function handleRegister(e) {
-      e.preventDefault();
-      const id = document.getElementById('regId').value.trim();
-      const name = document.getElementById('regName').value.trim();
-      const pw = document.getElementById('regPw').value.trim();
-
-      if (managers[id]) { alert("이미 존재하는 아이디입니다."); return; }
-
-      managers[id] = { name, pw, role: 'manager', surveyPw: '', mode: 'survey' };
-      columnsConfig[id] = DEFAULT_COLUMNS;
-      questions[id] = [];
-      
-      setStoredData('sys_managers_v5', managers);
-      setStoredData('sys_columns_v5', columnsConfig);
-      setStoredData('sys_questions_v5', questions);
-
-      alert("계정이 성공적으로 생성되었습니다! 새로 생성한 ID로 로그인해주세요.");
-      switchLoginMode('login');
-    }
-
-    // 로그인
-    function handleLogin(e) {
-      e.preventDefault();
-      const id = document.getElementById('loginId').value.trim();
-      const pw = document.getElementById('loginPw').value.trim();
-
-      if (managers[id] && managers[id].pw === pw) {
-        currentUser = { id, ...managers[id] };
-        document.getElementById('viewLogin').classList.add('hidden');
-
-        if (currentUser.role === 'superadmin') {
-          document.getElementById('viewSuperAdmin').classList.remove('hidden');
-          renderSuperAdminView();
-        } else {
-          document.getElementById('managerNameDisplay').innerText = `${currentUser.name} (${currentUser.id})`;
-          document.getElementById('surveyPasswordInput').value = currentUser.surveyPw || '';
-          
-          const myCols = columnsConfig[currentUser.id] || DEFAULT_COLUMNS;
-          document.getElementById('columnConfigInput').value = myCols.join(', ');
-
-          document.getElementById('viewManager').classList.remove('hidden');
-          setWorkMode(currentUser.mode || 'survey', false);
-          renderManagerQuestions();
-          renderManagerResponses();
-        }
-      } else {
-        alert("아이디 또는 비밀번호가 올바르지 않습니다.");
-      }
-    }
-
-    function logout() {
-      currentUser = null;
-      document.getElementById('viewLogin').classList.remove('hidden');
-      document.getElementById('viewSurvey').classList.add('hidden');
-      document.getElementById('viewManager').classList.add('hidden');
-      document.getElementById('viewSuperAdmin').classList.add('hidden');
-    }
-
-    // [핵심] 로그인 비밀번호 변경 기능 (담당자 & 전체 관리자 공통)
-    function openPasswordChangeModal() {
-      if (!currentUser) return;
-      const currentPwInput = prompt("현재 비밀번호를 입력하세요:");
-      if (currentPwInput === null) return;
-
-      if (currentPwInput !== managers[currentUser.id].pw) {
-        alert("현재 비밀번호가 일치하지 않습니다.");
-        return;
-      }
-
-      const newPw = prompt("새롭게 변경할 비밀번호를 입력하세요:");
-      if (!newPw) {
-        alert("비밀번호가 입력되지 않았습니다.");
-        return;
-      }
-
-      managers[currentUser.id].pw = newPw;
-      currentUser.pw = newPw;
-      setStoredData('sys_managers_v5', managers);
-      alert("로그인 비밀번호가 성공적으로 변경되었습니다.");
-    }
-
-    // 담당자: 취합 방식 선택
-    function setWorkMode(mode, save = true) {
-      if (save && currentUser) {
-        currentUser.mode = mode;
-        managers[currentUser.id].mode = mode;
-        setStoredData('sys_managers_v5', managers);
-      }
-
-      document.getElementById('modeCardSurvey').classList.toggle('selected', mode === 'survey');
-      document.getElementById('modeCardExcel').classList.toggle('selected', mode === 'excel');
-
-      document.getElementById('panelManageSurvey').classList.toggle('hidden', mode !== 'survey');
-      document.getElementById('panelManageExcel').classList.toggle('hidden', mode !== 'excel');
-
-      renderManagerResponses();
-    }
-
-    // 기관용 접속 및 양식 연결
-    function handleSurveyAccess(e) {
-      e.preventDefault();
-      const agencyName = document.getElementById('accessAgencyName').value.trim();
-      const managerId = document.getElementById('accessManagerId').value.trim();
-      const surveyPw = document.getElementById('accessSurveyPw').value.trim();
-
-      if (!managers[managerId]) { alert("존재하지 않는 담당자 ID입니다."); return; }
-      if (!managers[managerId].surveyPw || managers[managerId].surveyPw !== surveyPw) {
-        alert("제출 전용 비밀번호가 올바르지 않습니다."); return;
-      }
-
-      activeSurveyInfo = { managerId, agencyName, mode: managers[managerId].mode || 'survey' };
-      document.getElementById('displayAgencyName').innerText = agencyName;
-      document.getElementById('displayManagerId').innerText = managerId;
-      document.getElementById('viewLogin').classList.add('hidden');
-      document.getElementById('viewSurvey').classList.remove('hidden');
-
-      if (activeSurveyInfo.mode === 'survey') {
-        document.getElementById('surveyViewTitle').innerText = '기관 설문 응답';
-        document.getElementById('surveyViewDesc').innerText = '설문 문항에 맞춰 정확하게 답변을 입력해주세요.';
-        document.getElementById('customSurveyForm').classList.remove('hidden');
-        document.getElementById('excelGridForm').classList.add('hidden');
-        renderCustomSurvey();
-      } else {
-        document.getElementById('surveyViewTitle').innerText = '기관 자료 작성 및 붙여넣기';
-        document.getElementById('surveyViewDesc').innerText = '기존 엑셀에서 복사(Ctrl+C) 후 첫 셀을 클릭하고 붙여넣기(Ctrl+V) 하세요.';
-        document.getElementById('customSurveyForm').classList.add('hidden');
-        document.getElementById('excelGridForm').classList.remove('hidden');
-        renderSurveyGrid();
-      }
-    }
-
-    function exitSurvey() {
-      activeSurveyInfo = null;
-      document.getElementById('viewSurvey').classList.add('hidden');
-      document.getElementById('viewLogin').classList.remove('hidden');
-    }
-
-    // --- (A) 자체 설문 로직 ---
-    function renderCustomSurvey() {
-      const container = document.getElementById('surveyQuestionsContainer');
-      container.innerHTML = '';
-      const myQuestions = questions[activeSurveyInfo.managerId] || [];
-
-      if (myQuestions.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#64748b;">등록된 설문 질문이 없습니다.</p>';
-        return;
-      }
-
-      myQuestions.forEach(q => {
-        const div = document.createElement('div');
-        div.className = 'q-card';
-        let inputHtml = '';
-        if (q.type === 'text') {
-          inputHtml = `<input type="text" name="q_${q.id}" placeholder="답변을 입력하세요" required style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px;" />`;
-        } else if (q.type === 'radio') {
-          inputHtml = q.options.map(opt => `<label style="display:block; margin-bottom:4px;"><input type="radio" name="q_${q.id}" value="${opt}" required /> ${opt}</label>`).join('');
-        }
-        div.innerHTML = `<h4 style="margin:0 0 8px 0;">${q.title}</h4>${inputHtml}`;
-        container.appendChild(div);
-      });
-    }
-
-    function submitCustomSurvey(e) {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const myQuestions = questions[activeSurveyInfo.managerId] || [];
-      const answers = {};
-
-      myQuestions.forEach(q => answers[q.id] = formData.get(`q_${q.id}`));
-
-      const mId = activeSurveyInfo.managerId;
-      if (!responses[mId]) responses[mId] = [];
-
-      responses[mId].push({
-        type: 'survey',
-        agencyName: activeSurveyInfo.agencyName,
-        submittedAt: new Date().toLocaleString('ko-KR'),
-        answers: answers
-      });
-
-      setStoredData('sys_responses_v5', responses);
-      alert('설문 응답이 성공적으로 제출되었습니다!');
-      exitSurvey();
-    }
-
-    // --- (B) 엑셀 붙여넣기 로직 ---
-    function renderSurveyGrid() {
-      const cols = columnsConfig[activeSurveyInfo.managerId] || DEFAULT_COLUMNS;
-      const headerRow = document.getElementById('surveyGridHeader');
-      const body = document.getElementById('surveyGridBody');
-
-      headerRow.innerHTML = '<th>#</th>' + cols.map(c => `<th>${c}</th>`).join('');
-      body.innerHTML = '';
-      for (let i = 0; i < 10; i++) addSurveyGridRow();
-    }
-
-    function addSurveyGridRow() {
-      const cols = columnsConfig[activeSurveyInfo.managerId] || DEFAULT_COLUMNS;
-      const body = document.getElementById('surveyGridBody');
-      const rIdx = body.children.length;
-      const tr = document.createElement('tr');
-
-      let html = `<td style="text-align:center; color:#94a3b8;">${rIdx + 1}</td>`;
-      cols.forEach((_, cIdx) => {
-        html += `<td><input type="text" onpaste="handleGridPaste(event, ${rIdx}, ${cIdx})" /></td>`;
-      });
-      tr.innerHTML = html;
-      body.appendChild(tr);
-    }
-
-    function handleGridPaste(e, startRow, startCol) {
-      e.preventDefault();
-      const clipboardData = e.clipboardData || window.clipboardData;
-      const pastedData = clipboardData.getData('Text');
-      if (!pastedData) return;
-
-      const cols = columnsConfig[activeSurveyInfo.managerId] || DEFAULT_COLUMNS;
-      const rows = pastedData.split(/\r\n|\n|\r/);
-      const body = document.getElementById('surveyGridBody');
-
-      rows.forEach((rowText, rIdx) => {
-        if (rowText === '') return;
-        const targetRow = startRow + rIdx;
-        while (body.children.length <= targetRow) addSurveyGridRow();
-
-        const cellValues = rowText.split('\t');
-        cellValues.forEach((val, cIdx) => {
-          const targetCol = startCol + cIdx;
-          if (targetCol < cols.length) {
-            const input = body.children[targetRow].children[targetCol + 1].querySelector('input');
-            if (input) input.value = val.trim();
-          }
-        });
-      });
-    }
-
-    function submitExcelGridData() {
-      const body = document.getElementById('surveyGridBody');
-      const submittedRows = [];
-
-      Array.from(body.children).forEach(tr => {
-        const rowVals = [];
-        let hasVal = false;
-        tr.querySelectorAll('input').forEach(input => {
-          const v = input.value.trim();
-          rowVals.push(v);
-          if (v !== '') hasVal = true;
-        });
-        if (hasVal) submittedRows.push(rowVals);
-      });
-
-      if (submittedRows.length === 0) { alert('입력된 데이터가 없습니다.'); return; }
-
-      const mId = activeSurveyInfo.managerId;
-      if (!responses[mId]) responses[mId] = [];
-
-      responses[mId].push({
-        type: 'excel',
-        agencyName: activeSurveyInfo.agencyName,
-        submittedAt: new Date().toLocaleString('ko-KR'),
-        rows: submittedRows
-      });
-
-      setStoredData('sys_responses_v5', responses);
-      alert('자료가 성공적으로 제출되었습니다!');
-      exitSurvey();
-    }
-
-    // --- 담당자 기능 (비밀번호/질문/컬럼 관리) ---
-    function saveSurveyPassword() {
-      const pw = document.getElementById('surveyPasswordInput').value.trim();
-      if (!pw) { alert("제출 비밀번호를 입력하세요."); return; }
-      managers[currentUser.id].surveyPw = pw;
-      setStoredData('sys_managers_v5', managers);
-      alert("기관 전용 제출 비밀번호가 저장되었습니다.");
-    }
-
-    function switchManagerTab(tab) {
-      document.getElementById('tabManagerManage').classList.toggle('active', tab === 'manage');
-      document.getElementById('tabManagerResult').classList.toggle('active', tab === 'responses');
-
-      document.getElementById('managerTabManage').classList.toggle('hidden', tab !== 'manage');
-      document.getElementById('managerTabResponses').classList.toggle('hidden', tab !== 'responses');
-
-      if (tab === 'responses') renderManagerResponses();
-    }
-
-    function toggleOptionInput() {
-      const type = document.getElementById('newQType').value;
-      document.getElementById('optionGroup').classList.toggle('hidden', type !== 'radio');
-    }
-
-    function addQuestion() {
-      const title = document.getElementById('newQTitle').value.trim();
-      const type = document.getElementById('newQType').value;
-      const optionsRaw = document.getElementById('newQOptions').value.trim();
-
-      if (!title) { alert('질문 제목을 입력하세요.'); return; }
-
-      let options = [];
-      if (type === 'radio') {
-        if (!optionsRaw) { alert('객관식 옵션을 입력하세요.'); return; }
-        options = optionsRaw.split(',').map(s => s.trim()).filter(s => s);
-      }
-
-      const myQuestions = questions[currentUser.id] || [];
-      myQuestions.push({ id: Date.now(), title, type, options });
-      questions[currentUser.id] = myQuestions;
-
-      setStoredData('sys_questions_v5', questions);
-      document.getElementById('newQTitle').value = '';
-      document.getElementById('newQOptions').value = '';
-      renderManagerQuestions();
-    }
-
-    function deleteQuestion(qId) {
-      if (!confirm('질문을 삭제하시겠습니까?')) return;
-      questions[currentUser.id] = questions[currentUser.id].filter(q => q.id !== qId);
-      setStoredData('sys_questions_v5', questions);
-      renderManagerQuestions();
-    }
-
-    function renderManagerQuestions() {
-      const container = document.getElementById('managerQuestionList');
-      container.innerHTML = '';
-      const myQuestions = questions[currentUser.id] || [];
-
-      myQuestions.forEach((q, idx) => {
-        const div = document.createElement('div');
-        div.className = 'q-card';
-        div.style.display = 'flex';
-        div.style.justifyContent = 'space-between';
-        div.style.alignItems = 'center';
-
-        const info = q.type === 'radio' ? `(객관식: ${q.options.join(', ')})` : '(주관식)';
-        div.innerHTML = `
-          <div><strong>${idx + 1}. ${q.title}</strong> <span style="font-size:12px; color:#64748b;">${info}</span></div>
-          <button class="btn btn-danger btn-sm" onclick="deleteQuestion(${q.id})">삭제</button>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    function saveColumnConfig() {
-      const val = document.getElementById('columnConfigInput').value.trim();
-      if (!val) return;
-      const cols = val.split(',').map(s => s.trim()).filter(s => s);
-      columnsConfig[currentUser.id] = cols;
-      setStoredData('sys_columns_v5', columnsConfig);
-      alert('엑셀 취합 컬럼 서식이 변경되었습니다.');
-    }
-
-    function renderManagerResponses() {
-      const mode = currentUser ? (currentUser.mode || 'survey') : 'survey';
-      const myResponses = (responses[currentUser.id] || []).filter(r => r.type === mode);
-
-      const thead = document.getElementById('responseTableHeader');
-      const tbody = document.getElementById('responseTableBody');
-      tbody.innerHTML = '';
-
-      if (mode === 'survey') {
-        const myQuestions = questions[currentUser.id] || [];
-        thead.innerHTML = '<th>제출 기관명</th><th>제출일시</th>' + myQuestions.map(q => `<th>${q.title}</th>`).join('');
-
-        myResponses.forEach(res => {
-          const tr = document.createElement('tr');
-          const answersHtml = myQuestions.map(q => `<td>${res.answers[q.id] || '-'}</td>`).join('');
-          tr.innerHTML = `<td><strong>${res.agencyName}</strong></td><td>${res.submittedAt}</td>${answersHtml}`;
-          tbody.appendChild(tr);
-        });
-      } else {
-        const cols = columnsConfig[currentUser.id] || DEFAULT_COLUMNS;
-        thead.innerHTML = '<th>제출 기관명</th><th>제출일시</th>' + cols.map(c => `<th>${c}</th>`).join('');
-
-        myResponses.forEach(res => {
-          res.rows.forEach(rVals => {
-            const tr = document.createElement('tr');
-            const rowHtml = rVals.map(v => `<td>${v}</td>`).join('');
-            tr.innerHTML = `<td><strong>${res.agencyName}</strong></td><td>${res.submittedAt}</td>${rowHtml}`;
-            tbody.appendChild(tr);
-          });
-        });
-      }
-    }
-
-    function exportToExcel() {
-      const mode = currentUser.mode || 'survey';
-      const myResponses = (responses[currentUser.id] || []).filter(r => r.type === mode);
-      if (myResponses.length === 0) { alert('다운로드할 취합 데이터가 없습니다.'); return; }
-
-      const table = document.getElementById('responseTable');
-      const wb = XLSX.utils.table_to_book(table, { sheet: "응답취합" });
-      XLSX.writeFile(wb, `취합결과_${mode}_${currentUser.id}.xlsx`);
-    }
-
-    // 전체 관리자 기능
-    function renderSuperAdminView() {
-      const tbody = document.getElementById('superAdminTableBody');
-      tbody.innerHTML = '';
-
-      Object.keys(managers).forEach(id => {
-        if (managers[id].role === 'superadmin') return;
-        const m = managers[id];
-        const tr = document.createElement('tr');
-
-        const modeText = m.mode === 'excel' ? '📊 엑셀시트' : '📝 자체설문';
-        tr.innerHTML = `
-          <td><strong>${id}</strong></td>
-          <td>${m.name}</td>
-          <td>${modeText}</td>
-          <td>${m.surveyPw ? '🔒 설정됨' : '❌ 미설정'}</td>
-          <td><button class="btn btn-secondary btn-sm" onclick="forceResetPw('${id}')">변경</button></td>
-          <td><button class="btn btn-danger btn-sm" onclick="deleteManager('${id}')">삭제</button></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function forceResetPw(id) {
-      const newPw = prompt(`[${id}] 담당자의 변경할 비밀번호를 입력하세요:`);
-      if (newPw) {
-        managers[id].pw = newPw;
-        setStoredData('sys_managers_v5', managers);
-        alert("비밀번호가 변경되었습니다.");
-      }
-    }
-
-    function deleteManager(id) {
-      if (!confirm(`정말 [${id}] 담당자 계정을 삭제하시겠습니까?`)) return;
-      delete managers[id];
-      delete questions[id];
-      delete columnsConfig[id];
-      delete responses[id];
-
-      setStoredData('sys_managers_v5', managers);
-      setStoredData('sys_questions_v5', questions);
-      setStoredData('sys_columns_v5', columnsConfig);
-      setStoredData('sys_responses_v5', responses);
-      renderSuperAdminView();
-    }
-  </script>
 </body>
 </html>
