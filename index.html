@@ -742,8 +742,6 @@
   }
 
   // 값이 한국 전화번호 형태로 보이면 클릭 시 바로 전화가 걸리는 tel: 링크로 만들어준다.
-  // 엑셀 열이 "숫자" 서식으로 저장된 경우 맨 앞자리 0이 사라지는 경우가 흔해서
-  // (예: 010-1234-5678 → 1012345678), 그런 경우까지 보정해서 인식한다.
   function normalizePhoneDigits(value) {
     let digits = String(value).replace(/[^0-9]/g, '');
     if (!digits) return null;
@@ -755,15 +753,44 @@
   function looksLikePhoneNumber(value) {
     return normalizePhoneDigits(value) !== null;
   }
+
+  const TEL_STYLE = 'color:#16a34a; font-weight:700; text-decoration:none;';
+  // 셀 안에 다른 글자와 함께 전화번호가 섞여 있는 경우(예: "대표전화 041-123-4567",
+  // 번호가 여러 개 나열된 경우 등)에도, 그 번호로 보이는 부분만 찾아서 링크로 바꿔준다.
+  const PHONE_SUBSTR_PATTERN = /0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/g;
+
   function formatExtraValue(value) {
-    const str = String(value);
-    const digits = normalizePhoneDigits(str);
-    if (digits) {
-      // 엑셀 숫자서식 때문에 원래 값에 0이 없었다면, 화면 표시도 보정된 번호로 보여준다.
-      const displayText = str.replace(/[^0-9]/g, '')[0] === '0' ? str : digits;
-      return `<a href="tel:${digits}" class="tel-link">📞 ${escapeHtml(displayText)}</a>`;
+    const rawStr = String(value);
+    const trimmed = rawStr.trim();
+
+    // 1) 셀 전체가 숫자만인 경우 - 엑셀이 "숫자" 서식으로 인식해서 하이픈/맨앞 0이
+    //    통째로 사라졌을 수 있으므로, 이 경우만 별도로 보정해서 판단한다.
+    if (/^[0-9]+$/.test(trimmed)) {
+      const digits = normalizePhoneDigits(trimmed);
+      if (digits) {
+        return `<a href="tel:${digits}" style="${TEL_STYLE}">📞 ${escapeHtml(digits)}</a>`;
+      }
+      return escapeHtml(rawStr);
     }
-    return escapeHtml(str);
+
+    // 2) 그 외의 경우 - 텍스트 안에서 전화번호처럼 생긴 부분(들)만 찾아서 링크로 바꾸고,
+    //    나머지 글자는 그대로 둔다.
+    PHONE_SUBSTR_PATTERN.lastIndex = 0;
+    if (!PHONE_SUBSTR_PATTERN.test(rawStr)) return escapeHtml(rawStr);
+    PHONE_SUBSTR_PATTERN.lastIndex = 0;
+
+    let result = '';
+    let lastIndex = 0;
+    let match;
+    while ((match = PHONE_SUBSTR_PATTERN.exec(rawStr)) !== null) {
+      result += escapeHtml(rawStr.slice(lastIndex, match.index));
+      const matchedText = match[0];
+      const digits = matchedText.replace(/[^0-9]/g, '');
+      result += `<a href="tel:${digits}" style="${TEL_STYLE}">📞 ${escapeHtml(matchedText)}</a>`;
+      lastIndex = match.index + matchedText.length;
+    }
+    result += escapeHtml(rawStr.slice(lastIndex));
+    return result;
   }
 
   function exportResults() {
@@ -873,7 +900,6 @@
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
     // 전화번호처럼 보이는 값은 눌렀을 때 바로 전화가 걸리는 tel: 링크로 만들어준다.
-    // 엑셀 열이 "숫자" 서식으로 저장된 경우 맨 앞자리 0이 사라지는 경우가 흔해서 보정한다.
     function normalizePhoneDigits(value) {
       let digits = String(value).replace(/[^0-9]/g, '');
       if (!digits) return null;
@@ -882,14 +908,36 @@
       }
       return /^0\d{8,10}$/.test(digits) ? digits : null;
     }
+    var TEL_STYLE = 'color:#16a34a; font-weight:700; text-decoration:none;';
+    var PHONE_SUBSTR_PATTERN = /0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/g;
     function formatExtraValue(value) {
-      const str = String(value);
-      const digits = normalizePhoneDigits(str);
-      if (digits) {
-        const displayText = str.replace(/[^0-9]/g, '')[0] === '0' ? str : digits;
-        return '<a href="tel:' + digits + '" class="tel-link">📞 ' + escapeHtml(displayText) + '</a>';
+      var rawStr = String(value);
+      var trimmed = rawStr.trim();
+
+      if (/^[0-9]+$/.test(trimmed)) {
+        var wholeDigits = normalizePhoneDigits(trimmed);
+        if (wholeDigits) {
+          return '<a href="tel:' + wholeDigits + '" style="' + TEL_STYLE + '">📞 ' + escapeHtml(wholeDigits) + '</a>';
+        }
+        return escapeHtml(rawStr);
       }
-      return escapeHtml(str);
+
+      PHONE_SUBSTR_PATTERN.lastIndex = 0;
+      if (!PHONE_SUBSTR_PATTERN.test(rawStr)) return escapeHtml(rawStr);
+      PHONE_SUBSTR_PATTERN.lastIndex = 0;
+
+      var result = '';
+      var lastIndex = 0;
+      var match;
+      while ((match = PHONE_SUBSTR_PATTERN.exec(rawStr)) !== null) {
+        result += escapeHtml(rawStr.slice(lastIndex, match.index));
+        var matchedText = match[0];
+        var digits = matchedText.replace(/[^0-9]/g, '');
+        result += '<a href="tel:' + digits + '" style="' + TEL_STYLE + '">📞 ' + escapeHtml(matchedText) + '</a>';
+        lastIndex = match.index + matchedText.length;
+      }
+      result += escapeHtml(rawStr.slice(lastIndex));
+      return result;
     }
   <\/script>
 </body>
