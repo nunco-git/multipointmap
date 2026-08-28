@@ -71,7 +71,10 @@
   .btn-start:hover { background: #1d4ed8; }
   .btn-start:disabled { background: #cbd5e1; cursor: not-allowed; }
 
-  .dual-list-section { display: flex; gap: 14px; margin-bottom: 14px; align-items: stretch; }
+  .triple-section { display: flex; gap: 14px; margin-bottom: 14px; align-items: stretch; }
+  .triple-section .security-banner { flex: 0 0 27%; min-width: 240px; margin-bottom: 0; height: 420px; overflow-y: auto; }
+  .triple-section .full-list-panel,
+  .triple-section .visit-list-panel { flex: 1 1 36.5%; min-width: 260px; }
   .full-list-panel, .visit-list-panel { flex: 1 1 50%; min-width: 280px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fafafa; padding: 14px; height: 420px; overflow: auto; resize: vertical; display: flex; flex-direction: column; }
   .list-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .list-panel-header h3 { margin: 0; font-size: 0.92rem; color: #0f172a; }
@@ -152,8 +155,9 @@
   .iw-app { background: #2563eb; color: white; }
   .iw-web { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
 
-  @media (max-width: 900px) {
-    .dual-list-section { flex-direction: column; }
+  @media (max-width: 1100px) {
+    .triple-section { flex-direction: column; }
+    .triple-section .security-banner { height: auto; flex-basis: auto; }
     .full-list-panel, .visit-list-panel { height: 300px; }
     .map-full-panel { height: 380px; }
   }
@@ -164,18 +168,6 @@
 <div class="app-container">
   <h2>📍 엑셀 주소 → 네이버 지도 표시기</h2>
   <p class="subtitle">엑셀의 주소 목록을 네이버 지도에 한 번에 표시하고, 각 위치로 바로 길찾기를 연결합니다.</p>
-
-  <div class="security-banner">
-    <div class="security-banner-header">
-      <strong>🔒 개인정보 및 데이터 보안 100% 보장</strong>
-      <button class="btn-reset" id="reset-btn" onclick="resetAll()" disabled>🗑️ 초기화</button>
-    </div>
-    <ul class="security-features">
-      <li><span class="feat-icon">🌐</span><span><strong>외부 서버 전송 ZERO</strong> <span class="feat-desc">: 주소는 네이버 지도 API 조회에만 쓰이고 별도로 저장되지 않음</span></span></li>
-      <li><span class="feat-icon">📍</span><span><strong>자동 좌표 변환</strong> <span class="feat-desc">: 엑셀 주소 목록을 한 번에 지도 위에 표시</span></span></li>
-      <li><span class="feat-icon">🧭</span><span><strong>길찾기 연동</strong> <span class="feat-desc">: 마커 클릭 시 네이버 지도·내비게이션으로 바로 연결</span></span></li>
-    </ul>
-  </div>
 
   <div class="drop-zone" id="drop-zone">
     📁 <strong>클릭하거나 엑셀(.xlsx) 파일을 이곳으로 끌어다 놓으세요</strong>
@@ -194,7 +186,19 @@
     <button class="btn-start" id="start-btn" onclick="startGeocoding()">🚀 지도에 표시 시작</button>
   </div>
 
-  <div class="dual-list-section">
+  <div class="triple-section">
+    <div class="security-banner">
+      <div class="security-banner-header">
+        <strong>🔒 개인정보 및 데이터 보안 100% 보장</strong>
+        <button class="btn-reset" id="reset-btn" onclick="resetAll()" disabled>🗑️ 초기화</button>
+      </div>
+      <ul class="security-features">
+        <li><span class="feat-icon">🌐</span><span><strong>외부 서버 전송 ZERO</strong> <span class="feat-desc">: 주소는 네이버 지도 API 조회에만 쓰이고 별도로 저장되지 않음</span></span></li>
+        <li><span class="feat-icon">📍</span><span><strong>자동 좌표 변환</strong> <span class="feat-desc">: 엑셀 주소 목록을 한 번에 지도 위에 표시</span></span></li>
+        <li><span class="feat-icon">🧭</span><span><strong>길찾기 연동</strong> <span class="feat-desc">: 마커 클릭 시 네이버 지도·내비게이션으로 바로 연결</span></span></li>
+      </ul>
+    </div>
+
     <div class="full-list-panel" id="full-list-panel">
       <div class="list-panel-header">
         <h3>📋 전체 주소 목록 (<span id="addr-count">0</span>)</h3>
