@@ -859,6 +859,50 @@
   </header>
   <div id="map"></div>
   <script>
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    // 전화번호처럼 보이는 값은 눌렀을 때 바로 전화가 걸리는 tel: 링크로 만들어준다.
+    function normalizePhoneDigits(value) {
+      let digits = String(value).replace(/[^0-9]/g, '');
+      if (!digits) return null;
+      if (digits[0] !== '0' && (digits.length === 9 || digits.length === 10)) {
+        digits = '0' + digits;
+      }
+      return /^0\\d{8,10}$/.test(digits) ? digits : null;
+    }
+    var TEL_STYLE = 'color:#16a34a; font-weight:700; text-decoration:none;';
+    var PHONE_SUBSTR_PATTERN = /0\\d{1,2}[-.\\s]?\\d{3,4}[-.\\s]?\\d{4}/g;
+    function formatExtraValue(value) {
+      var rawStr = String(value);
+      var trimmed = rawStr.trim();
+
+      if (/^[0-9]+$/.test(trimmed)) {
+        var wholeDigits = normalizePhoneDigits(trimmed);
+        if (wholeDigits) {
+          return '<a href="tel:' + wholeDigits + '" style="' + TEL_STYLE + '">📞 ' + escapeHtml(wholeDigits) + '</a>';
+        }
+        return escapeHtml(rawStr);
+      }
+
+      PHONE_SUBSTR_PATTERN.lastIndex = 0;
+      if (!PHONE_SUBSTR_PATTERN.test(rawStr)) return escapeHtml(rawStr);
+      PHONE_SUBSTR_PATTERN.lastIndex = 0;
+
+      var result = '';
+      var lastIndex = 0;
+      var match;
+      while ((match = PHONE_SUBSTR_PATTERN.exec(rawStr)) !== null) {
+        result += escapeHtml(rawStr.slice(lastIndex, match.index));
+        var matchedText = match[0];
+        var digits = matchedText.replace(/[^0-9]/g, '');
+        result += '<a href="tel:' + digits + '" style="' + TEL_STYLE + '">📞 ' + escapeHtml(matchedText) + '</a>';
+        lastIndex = match.index + matchedText.length;
+      }
+      result += escapeHtml(rawStr.slice(lastIndex));
+      return result;
+    }
+
     const points = ${dataJson};
     const map = L.map('map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -894,50 +938,6 @@
       map.setView([points[0].lat, points[0].lng], 16);
     } else {
       map.fitBounds(L.featureGroup(markers).getBounds(), { padding: [30, 30] });
-    }
-
-    function escapeHtml(s) {
-      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-    // 전화번호처럼 보이는 값은 눌렀을 때 바로 전화가 걸리는 tel: 링크로 만들어준다.
-    function normalizePhoneDigits(value) {
-      let digits = String(value).replace(/[^0-9]/g, '');
-      if (!digits) return null;
-      if (digits[0] !== '0' && (digits.length === 9 || digits.length === 10)) {
-        digits = '0' + digits;
-      }
-      return /^0\d{8,10}$/.test(digits) ? digits : null;
-    }
-    var TEL_STYLE = 'color:#16a34a; font-weight:700; text-decoration:none;';
-    var PHONE_SUBSTR_PATTERN = /0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/g;
-    function formatExtraValue(value) {
-      var rawStr = String(value);
-      var trimmed = rawStr.trim();
-
-      if (/^[0-9]+$/.test(trimmed)) {
-        var wholeDigits = normalizePhoneDigits(trimmed);
-        if (wholeDigits) {
-          return '<a href="tel:' + wholeDigits + '" style="' + TEL_STYLE + '">📞 ' + escapeHtml(wholeDigits) + '</a>';
-        }
-        return escapeHtml(rawStr);
-      }
-
-      PHONE_SUBSTR_PATTERN.lastIndex = 0;
-      if (!PHONE_SUBSTR_PATTERN.test(rawStr)) return escapeHtml(rawStr);
-      PHONE_SUBSTR_PATTERN.lastIndex = 0;
-
-      var result = '';
-      var lastIndex = 0;
-      var match;
-      while ((match = PHONE_SUBSTR_PATTERN.exec(rawStr)) !== null) {
-        result += escapeHtml(rawStr.slice(lastIndex, match.index));
-        var matchedText = match[0];
-        var digits = matchedText.replace(/[^0-9]/g, '');
-        result += '<a href="tel:' + digits + '" style="' + TEL_STYLE + '">📞 ' + escapeHtml(matchedText) + '</a>';
-        lastIndex = match.index + matchedText.length;
-      }
-      result += escapeHtml(rawStr.slice(lastIndex));
-      return result;
     }
   <\/script>
 </body>
