@@ -383,7 +383,7 @@
         <div>${addrText}</div>
         ${extraHtml}
         <div class="iw-btns">
-          <a class="iw-app" href="${appUrl}">📱 앱으로 길찾기</a>
+          <a class="iw-app" href="${appUrl}" target="_blank" rel="noopener noreferrer">📱 앱으로 길찾기</a>
           <a class="iw-web" href="${webUrl}" target="_blank" rel="noopener noreferrer">🌐 웹에서 보기</a>
         </div>
       </div>`
@@ -508,7 +508,7 @@
       routeResultEl.innerHTML =
         `<div class="rr-order">방문 순서: ${visitOrder.map(escapeHtml).join(' → ')}</div>` +
         `<div>총 거리 약 ${km}km · 예상 소요시간 약 ${min}분 (도로 기준, 실시간 교통정보 미반영)</div>` +
-        `<a href="${naverAppUrl}">📱 네이버 지도 앱으로 이 경로 열기(실시간 교통정보 반영)</a>`;
+        `<a href="${naverAppUrl}" target="_blank" rel="noopener noreferrer">📱 네이버 지도 앱으로 이 경로 열기(실시간 교통정보 반영)</a>`;
     } catch (err) {
       console.error(err);
       routeResultEl.textContent = '❌ 경로 계산에 실패했습니다: ' + err.message;
@@ -573,7 +573,8 @@
     if (okItems.length === 1) {
       // 1곳만 선택한 경우엔 경로가 아니라 단순 장소 보기로 연다.
       const it = okItems[0];
-      window.location.href = `nmap://place?lat=${it.lat}&lng=${it.lng}&name=${encodeURIComponent(it.name || it.address)}&appname=${encodeURIComponent(location.href)}`;
+      const placeUrl = `nmap://place?lat=${it.lat}&lng=${it.lng}&name=${encodeURIComponent(it.name || it.address)}&appname=${encodeURIComponent(location.href)}`;
+      openNmapLink(placeUrl);
       return;
     }
 
@@ -589,7 +590,20 @@
     if (note) alert(note.trim());
 
     const url = buildNaverRouteAppUrlFromOrderedItems(targetItems);
-    window.location.href = url;
+    openNmapLink(url);
+  }
+
+  // nmap:// 딥링크는 location.href를 직접 바꾸면(특히 앱이 없는 PC에서) 현재 페이지 자체가
+  // "사이트에 연결할 수 없음" 오류로 깨져버릴 수 있다. 대신 새 탭에서 열어서, 앱이 있으면
+  // 그쪽에서 자연스럽게 열리고 없으면 새 탭만 실패할 뿐 원래 화면은 그대로 남도록 한다.
+  function openNmapLink(url) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   function updateRowStatus(idx) {
