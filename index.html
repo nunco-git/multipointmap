@@ -119,7 +119,11 @@
   .status-err { color: #ef4444; font-weight: 700; }
   .status-pending { color: #94a3b8; }
 
-  .map-full-panel { width: 100%; height: 520px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; resize: vertical; margin-bottom: 14px; }
+  .map-full-panel { width: 100%; height: 520px; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; resize: vertical; margin-bottom: 14px; position: relative; }
+  .map-legend { display: none; position: absolute; top: 12px; right: 12px; z-index: 400; background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(0,0,0,0.12); max-height: 200px; overflow-y: auto; }
+  .map-legend.visible { display: block; }
+  .legend-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; white-space: nowrap; }
+  .legend-dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
   #map { width: 100%; height: 100%; min-height: 300px; }
   .marker-label { background: white; border: 1.5px solid #2563eb; border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700; color: #1e3a8a; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.15); transform: translate(-50%, -140%); }
 
@@ -183,6 +187,10 @@
       <label>표시 이름 열 (선택)</label>
       <select id="name-col-select"><option value="">— 주소로 표시 —</option></select>
     </div>
+    <div class="opt-field">
+      <label>구분(색상 분류) 열 (선택)</label>
+      <select id="category-col-select"><option value="">— 색상 구분 없음 —</option></select>
+    </div>
     <button class="btn-start" id="start-btn" onclick="startGeocoding()">🚀 지도에 표시 시작</button>
   </div>
 
@@ -226,6 +234,7 @@
 
   <div class="map-full-panel" id="map-full-panel">
     <div id="map"></div>
+    <div class="map-legend" id="map-legend"></div>
   </div>
 
   <div class="bottom-actions">
@@ -255,6 +264,7 @@
   const optionBox = document.getElementById('option-box');
   const addrColSelect = document.getElementById('addr-col-select');
   const nameColSelect = document.getElementById('name-col-select');
+  const categoryColSelect = document.getElementById('category-col-select');
   const startBtn = document.getElementById('start-btn');
   const fullListBody = document.getElementById('full-list-body');
   const visitListBody = document.getElementById('visit-list-body');
@@ -275,6 +285,7 @@
   let markers = [];
   let activeInfoWindow = null;
   let visitList = [];     // 방문할 목록 - items의 idx를 "방문 순서대로" 담는 배열 (맨 앞=출발, 맨 뒤=도착)
+  let categoryColorMap = new Map(); // 구분(분류) 값 -> 마커 색상
   let draggedPos = null;  // 방문목록 드래그 재정렬 중 원래 위치
   let routePolyline = null;
 
@@ -314,10 +325,14 @@
 
     addrColSelect.innerHTML = headers.map(h => `<option value="${h}">${h}</option>`).join('');
     nameColSelect.innerHTML = '<option value="">— 주소로 표시 —</option>' + headers.map(h => `<option value="${h}">${h}</option>`).join('');
+    categoryColSelect.innerHTML = '<option value="">— 색상 구분 없음 —</option>' + headers.map(h => `<option value="${h}">${h}</option>`).join('');
 
     // 열 이름에 "주소"가 포함되어 있으면 자동 선택
     const guess = headers.find(h => h.includes('주소')) || headers[0];
     addrColSelect.value = guess;
+    // 열 이름에 "구분"/"분류"/"유형"이 있으면 색상 구분 열도 자동 선택 (원치 않으면 직접 바꾸면 됨)
+    const categoryGuess = headers.find(h => /구분|분류|유형|종류/.test(h));
+    if (categoryGuess) categoryColSelect.value = categoryGuess;
 
     optionBox.classList.add('visible');
     resetBtn.disabled = false;
@@ -332,6 +347,7 @@
     }
     const addrCol = addrColSelect.value;
     const nameCol = nameColSelect.value;
+    const categoryCol = categoryColSelect.value;
     if (!addrCol) { alert('주소가 있는 열을 선택해 주세요.'); return; }
 
     startBtn.disabled = true;
@@ -351,11 +367,15 @@
       return {
         name: nameCol ? String(row[nameCol] || '').trim() : '',
         address: String(row[addrCol] || '').trim(),
+        category: categoryCol ? String(row[categoryCol] || '').trim() : '',
         status: 'pending',
         lat: null, lng: null,
         extra
       };
     }).filter(it => it.address !== '');
+
+    categoryColorMap = categoryCol ? buildCategoryColorMap(items) : new Map();
+    renderLegend();
 
     addrCountEl.textContent = items.length;
     renderFullList();
@@ -376,6 +396,38 @@
     startBtn.disabled = false;
     exportBtn.disabled = items.length === 0;
     mapHtmlBtn.disabled = successCount === 0;
+  }
+
+  // 구분(분류) 값마다 색상을 하나씩 순서대로 배정한다 (같은 값이면 항상 같은 색).
+  const COLOR_PALETTE = ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#65a30d', '#ea580c', '#4f46e5'];
+  function buildCategoryColorMap(itemsList) {
+    const map = new Map();
+    let i = 0;
+    itemsList.forEach(it => {
+      const cat = it.category || '(미지정)';
+      if (!map.has(cat)) {
+        map.set(cat, COLOR_PALETTE[i % COLOR_PALETTE.length]);
+        i++;
+      }
+    });
+    return map;
+  }
+  function getMarkerColor(item) {
+    if (!categoryColorMap || categoryColorMap.size === 0) return '#2563eb';
+    return categoryColorMap.get(item.category || '(미지정)') || '#2563eb';
+  }
+  function renderLegend() {
+    const legendEl = document.getElementById('map-legend');
+    if (!legendEl) return;
+    if (!categoryColorMap || categoryColorMap.size === 0) {
+      legendEl.innerHTML = '';
+      legendEl.classList.remove('visible');
+      return;
+    }
+    legendEl.innerHTML = [...categoryColorMap.entries()].map(([cat, color]) =>
+      `<div class="legend-item"><span class="legend-dot" style="background:${color};"></span>${escapeHtml(cat)}</div>`
+    ).join('');
+    legendEl.classList.add('visible');
   }
 
   function geocodeOne(item, idx) {
@@ -399,11 +451,12 @@
   function addMarker(item, idx) {
     const position = new naver.maps.LatLng(item.lat, item.lng);
     const label = escapeHtml(item.name || item.address);
+    const color = getMarkerColor(item);
     // 지도 위에 이름을 항상 표시 - 핀 아이콘 + 그 위에 이름표(라벨)를 함께 그린다.
     const markerHtml = `
       <div style="position:relative;">
-        <div class="marker-label">${label}</div>
-        <div style="width:14px;height:14px;border-radius:50%;background:#2563eb;border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>
+        <div class="marker-label" style="border-color:${color}; color:${color};">${label}</div>
+        <div style="width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>
       </div>`;
     const marker = new naver.maps.Marker({
       position, map, title: item.name || item.address,
@@ -827,8 +880,10 @@
       address: it.address,
       lat: it.lat,
       lng: it.lng,
-      extra: it.extra || {}
+      extra: it.extra || {},
+      color: getMarkerColor(it)
     })));
+    const legendJson = JSON.stringify([...categoryColorMap.entries()]);
 
     const html = `<!DOCTYPE html>
 <html lang="ko">
@@ -854,8 +909,12 @@
   .tel-link { color: #16a34a; font-weight: 700; text-decoration: none; }
   .tel-link:hover { text-decoration: underline; }
   .popup-box a { display: inline-block; margin-top: 6px; padding: 5px 10px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; }
-  .marker-name-label { background: white !important; border: 1.5px solid #2563eb !important; border-radius: 6px !important; padding: 2px 7px !important; font-size: 11px !important; font-weight: 700; color: #1e3a8a; box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important; }
+  .marker-name-label { background: white !important; border-radius: 6px !important; padding: 2px 7px !important; font-size: 11px !important; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important; border: 1.5px solid #2563eb; color: #1e3a8a; white-space: nowrap; }
   .marker-name-label::before { display: none; }
+  .map-legend { display: none; position: absolute; top: 12px; right: 12px; z-index: 400; background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(0,0,0,0.12); max-height: 200px; overflow-y: auto; }
+  .map-legend.visible { display: block; }
+  .legend-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; white-space: nowrap; }
+  .legend-dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 </style>
 </head>
 <body>
@@ -863,7 +922,9 @@
     <h1>📍 주소 위치 지도 (총 ${okItems.length}곳)</h1>
     <p>이 지도는 별도 앱 설치 없이 인터넷 브라우저만 있으면 볼 수 있습니다. 마커를 클릭하면 네이버 지도로 길찾기를 열 수 있습니다.</p>
   </header>
-  <div id="map"></div>
+  <div id="map" style="position:relative;">
+    <div class="map-legend" id="map-legend"></div>
+  </div>
   <script>
     function escapeHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -914,20 +975,35 @@
     }
 
     const points = ${dataJson};
+    const legend = ${legendJson};
     const map = L.map('map');
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
+    if (legend.length > 0) {
+      const legendEl = document.getElementById('map-legend');
+      legendEl.innerHTML = legend.map(function (entry) {
+        return '<div class="legend-item"><span class="legend-dot" style="background:' + entry[1] + ';"></span>' + escapeHtml(entry[0]) + '</div>';
+      }).join('');
+      legendEl.classList.add('visible');
+    }
+
     const markers = [];
     points.forEach(p => {
-      const marker = L.marker([p.lat, p.lng]).addTo(map);
-      // 이름표를 마커 위에 항상 표시 (클릭하지 않아도 보이도록 permanent tooltip 사용)
-      marker.bindTooltip(escapeHtml(p.name), {
-        permanent: true, direction: 'top', offset: [0, -8],
-        className: 'marker-name-label'
+      const color = p.color || '#2563eb';
+      // 이름표를 마커 위에 항상 표시 - 핀 아이콘 + 이름표를 하나의 커스텀 아이콘으로 함께 그린다.
+      const icon = L.divIcon({
+        className: '',
+        html: '<div style="position:relative;">' +
+          '<div class="marker-name-label" style="border-color:' + color + '; color:' + color + ';">' + escapeHtml(p.name) + '</div>' +
+          '<div style="width:14px;height:14px;border-radius:50%;background:' + color + ';border:2.5px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>' +
+          '</div>',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
       });
+      const marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);
 
       const extraKeys = Object.keys(p.extra || {}).filter(k => String(p.extra[k]).trim() !== '');
       const extraHtml = extraKeys.length > 0
@@ -968,6 +1044,8 @@
     headers = [];
     items = [];
     visitList = [];
+    categoryColorMap = new Map();
+    renderLegend();
     clearRoute();
     clearMarkers();
     renderFullList();
