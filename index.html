@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 우리가 만든 tel: 링크만 쓰이도록, iOS/안드로이드의 자체 전화번호 자동인식(길게 눌러야 나오는 팝업)을 끈다 -->
+<meta name="format-detection" content="telephone=no">
 <title>엑셀 주소 → 네이버 지도 표시기</title>
 
 <!-- 엑셀 읽기/쓰기 -->
@@ -735,17 +737,27 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  // 값이 한국 전화번호 형태(0으로 시작, 하이픈/공백 제외하고 9~11자리 숫자)로 보이면
-  // 클릭 시 바로 전화가 걸리는 tel: 링크로 만들어준다. 아니면 평범한 텍스트로 표시한다.
+  // 값이 한국 전화번호 형태로 보이면 클릭 시 바로 전화가 걸리는 tel: 링크로 만들어준다.
+  // 엑셀 열이 "숫자" 서식으로 저장된 경우 맨 앞자리 0이 사라지는 경우가 흔해서
+  // (예: 010-1234-5678 → 1012345678), 그런 경우까지 보정해서 인식한다.
+  function normalizePhoneDigits(value) {
+    let digits = String(value).replace(/[^0-9]/g, '');
+    if (!digits) return null;
+    if (digits[0] !== '0' && (digits.length === 9 || digits.length === 10)) {
+      digits = '0' + digits; // 엑셀 숫자서식 때문에 사라진 맨 앞 0을 복원
+    }
+    return /^0\d{8,10}$/.test(digits) ? digits : null;
+  }
   function looksLikePhoneNumber(value) {
-    const digits = String(value).replace(/[^0-9]/g, '');
-    return /^0\d{8,10}$/.test(digits);
+    return normalizePhoneDigits(value) !== null;
   }
   function formatExtraValue(value) {
     const str = String(value);
-    if (looksLikePhoneNumber(str)) {
-      const digits = str.replace(/[^0-9]/g, '');
-      return `<a href="tel:${digits}" class="tel-link">📞 ${escapeHtml(str)}</a>`;
+    const digits = normalizePhoneDigits(str);
+    if (digits) {
+      // 엑셀 숫자서식 때문에 원래 값에 0이 없었다면, 화면 표시도 보정된 번호로 보여준다.
+      const displayText = str.replace(/[^0-9]/g, '')[0] === '0' ? str : digits;
+      return `<a href="tel:${digits}" class="tel-link">📞 ${escapeHtml(displayText)}</a>`;
     }
     return escapeHtml(str);
   }
@@ -786,6 +798,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="format-detection" content="telephone=no">
 <title>주소 위치 지도 (${okItems.length}곳)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
@@ -855,17 +868,22 @@
     function escapeHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
-    // 전화번호처럼 보이는 값(0으로 시작, 하이픈/공백 제외 9~11자리 숫자)은 눌렀을 때 바로
-    // 전화가 걸리는 tel: 링크로 만들어준다.
-    function looksLikePhoneNumber(value) {
-      const digits = String(value).replace(/[^0-9]/g, '');
-      return /^0\d{8,10}$/.test(digits);
+    // 전화번호처럼 보이는 값은 눌렀을 때 바로 전화가 걸리는 tel: 링크로 만들어준다.
+    // 엑셀 열이 "숫자" 서식으로 저장된 경우 맨 앞자리 0이 사라지는 경우가 흔해서 보정한다.
+    function normalizePhoneDigits(value) {
+      let digits = String(value).replace(/[^0-9]/g, '');
+      if (!digits) return null;
+      if (digits[0] !== '0' && (digits.length === 9 || digits.length === 10)) {
+        digits = '0' + digits;
+      }
+      return /^0\d{8,10}$/.test(digits) ? digits : null;
     }
     function formatExtraValue(value) {
       const str = String(value);
-      if (looksLikePhoneNumber(str)) {
-        const digits = str.replace(/[^0-9]/g, '');
-        return '<a href="tel:' + digits + '" class="tel-link">📞 ' + escapeHtml(str) + '</a>';
+      const digits = normalizePhoneDigits(str);
+      if (digits) {
+        const displayText = str.replace(/[^0-9]/g, '')[0] === '0' ? str : digits;
+        return '<a href="tel:' + digits + '" class="tel-link">📞 ' + escapeHtml(displayText) + '</a>';
       }
       return escapeHtml(str);
     }
