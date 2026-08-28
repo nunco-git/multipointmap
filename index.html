@@ -417,7 +417,7 @@
     // 엑셀의 나머지(주소/이름 외) 열 정보를 클릭 시 함께 보여준다.
     const extraKeys = Object.keys(item.extra || {}).filter(k => String(item.extra[k]).trim() !== '');
     const extraHtml = extraKeys.length > 0
-      ? `<div class="iw-extra">${extraKeys.map(k => `<div><span class="iw-key">${escapeHtml(k)}:</span><span>${formatExtraValue(item.extra[k])}</span></div>`).join('')}</div>`
+      ? `<div class="iw-extra">${extraKeys.map(k => `<div><span class="iw-key">${escapeHtml(k)}:</span><span>${formatExtraValue(item.extra[k], k)}</span></div>`).join('')}</div>`
       : '';
 
     const iw = new naver.maps.InfoWindow({
@@ -759,8 +759,14 @@
   // 번호가 여러 개 나열된 경우 등)에도, 그 번호로 보이는 부분만 찾아서 링크로 바꿔준다.
   const PHONE_SUBSTR_PATTERN = /0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/g;
 
-  function formatExtraValue(value) {
+  // 열 이름이 "팩스"/"FAX" 등이면 전화 걸기 링크로 만들지 않는다 (팩스는 눌러서 전화를 걸 대상이 아니므로).
+  function isFaxLabel(key) {
+    return /팩스|fax/i.test(String(key || ''));
+  }
+
+  function formatExtraValue(value, key) {
     const rawStr = String(value);
+    if (isFaxLabel(key)) return escapeHtml(rawStr);
     const trimmed = rawStr.trim();
 
     // 1) 셀 전체가 숫자만인 경우 - 엑셀이 "숫자" 서식으로 인식해서 하이픈/맨앞 0이
@@ -873,8 +879,12 @@
     }
     var TEL_STYLE = 'color:#16a34a; font-weight:700; text-decoration:none;';
     var PHONE_SUBSTR_PATTERN = /0\\d{1,2}[-.\\s]?\\d{3,4}[-.\\s]?\\d{4}/g;
-    function formatExtraValue(value) {
+    function isFaxLabel(key) {
+      return /팩스|fax/i.test(String(key || ''));
+    }
+    function formatExtraValue(value, key) {
       var rawStr = String(value);
+      if (isFaxLabel(key)) return escapeHtml(rawStr);
       var trimmed = rawStr.trim();
 
       if (/^[0-9]+$/.test(trimmed)) {
@@ -921,7 +931,7 @@
 
       const extraKeys = Object.keys(p.extra || {}).filter(k => String(p.extra[k]).trim() !== '');
       const extraHtml = extraKeys.length > 0
-        ? '<div class="p-extra">' + extraKeys.map(k => '<div><span class="p-key">' + escapeHtml(k) + ':</span><span>' + formatExtraValue(p.extra[k]) + '</span></div>').join('') + '</div>'
+        ? '<div class="p-extra">' + extraKeys.map(k => '<div><span class="p-key">' + escapeHtml(k) + ':</span><span>' + formatExtraValue(p.extra[k], k) + '</span></div>').join('') + '</div>'
         : '';
 
       const webUrl = 'https://map.naver.com/p/search/' + encodeURIComponent(p.address);
