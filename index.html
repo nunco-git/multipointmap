@@ -125,7 +125,7 @@
   .legend-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; white-space: nowrap; }
   .legend-dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
   #map { width: 100%; height: 100%; min-height: 300px; }
-  .marker-label { background: white; border: 2.5px solid #1e293b; border-radius: 8px; padding: 5px 12px; font-size: 25px; font-weight: 800; color: #1e293b; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.25); transform: translate(-50%, -110%); }
+  .marker-label { font-size: 20px; font-weight: 800; color: #1e293b; white-space: nowrap; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 0 3px #fff; }
 
   .bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
   .btn-export { padding: 12px 20px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
@@ -453,16 +453,16 @@
     const position = new naver.maps.LatLng(item.lat, item.lng);
     const label = escapeHtml(item.name || item.address);
     const color = getMarkerColor(item);
-    // 지도 위에 이름을 항상 표시 - 핀(역삼각형) 아이콘 + 그 위에 이름표(라벨)를 함께 그린다.
+    // 지도 위에 이름을 항상 표시 - 핀(역삼각형) 아이콘 바로 옆에 이름표를 나란히 그린다.
     // 이름표는 구분과 무관하게 항상 같은 색상(고정)으로 통일하고, 구분은 핀 색상으로만 표시한다.
-    const PIN_W = 30, PIN_H = 40; // 384x512 비율의 아이콘을 30px 너비로 맞춤
+    const PIN_W = 25, PIN_H = Math.round(PIN_W * 512 / 384); // 384x512 비율의 아이콘을 25px 너비로 맞춤
     const markerHtml = `
-      <div style="position:relative;">
-        <div class="marker-label">${label}</div>
-        <svg width="${PIN_W}" height="${PIN_H}" viewBox="0 0 384 512" style="display:block;">
+      <div style="position:relative; display:flex; align-items:flex-end; gap:3px;">
+        <svg width="${PIN_W}" height="${PIN_H}" viewBox="0 0 384 512" style="display:block; flex-shrink:0;">
           <path fill="${color}" stroke="white" stroke-width="16" d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0z"/>
           <circle cx="192" cy="192" r="70" fill="white"/>
         </svg>
+        <div class="marker-label">${label}</div>
       </div>`;
     const marker = new naver.maps.Marker({
       position, map, title: item.name || item.address,
@@ -915,7 +915,7 @@
   .tel-link { color: #16a34a; font-weight: 700; text-decoration: none; }
   .tel-link:hover { text-decoration: underline; }
   .popup-box a { display: inline-block; margin-top: 6px; padding: 5px 10px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; }
-  .marker-name-label { background: white !important; border: 2.5px solid #1e293b !important; border-radius: 8px !important; padding: 5px 12px !important; font-size: 25px !important; font-weight: 800; color: #1e293b !important; box-shadow: 0 2px 6px rgba(0,0,0,0.25) !important; white-space: nowrap; transform: translate(-50%, -110%); }
+  .marker-name-label { font-size: 20px !important; font-weight: 800; color: #1e293b !important; white-space: nowrap; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 0 3px #fff; }
   .marker-name-label::before { display: none; }
   .map-legend { display: none; position: absolute; top: 12px; right: 12px; z-index: 400; background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(0,0,0,0.12); max-height: 200px; overflow-y: auto; }
   .map-legend.visible { display: block; }
@@ -999,17 +999,17 @@
     const markers = [];
     points.forEach(p => {
       const color = p.color || '#2563eb';
-      // 이름표를 마커 위에 항상 표시 - 핀(역삼각형) 아이콘 + 이름표를 하나의 커스텀 아이콘으로 함께 그린다.
+      // 이름표를 마커 옆에 항상 표시 - 핀(역삼각형) 아이콘 바로 옆에 이름표를 나란히 그린다.
       // 이름표는 구분과 무관하게 항상 같은 색상으로 통일하고, 구분은 핀 색상으로만 표시한다.
-      const PIN_W = 30, PIN_H = 40;
+      const PIN_W = 25, PIN_H = Math.round(PIN_W * 512 / 384);
       const icon = L.divIcon({
         className: '',
-        html: '<div style="position:relative;">' +
-          '<div class="marker-name-label">' + escapeHtml(p.name) + '</div>' +
-          '<svg width="' + PIN_W + '" height="' + PIN_H + '" viewBox="0 0 384 512" style="display:block;">' +
+        html: '<div style="position:relative; display:flex; align-items:flex-end; gap:3px;">' +
+          '<svg width="' + PIN_W + '" height="' + PIN_H + '" viewBox="0 0 384 512" style="display:block; flex-shrink:0;">' +
           '<path fill="' + color + '" stroke="white" stroke-width="16" d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0z"/>' +
           '<circle cx="192" cy="192" r="70" fill="white"/>' +
           '</svg>' +
+          '<div class="marker-name-label">' + escapeHtml(p.name) + '</div>' +
           '</div>',
         iconSize: [PIN_W, PIN_H],
         iconAnchor: [PIN_W / 2, PIN_H]
