@@ -145,6 +145,19 @@
   .legend-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; white-space: nowrap; }
   .legend-dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
   #map { width: 100%; height: 100%; min-height: 300px; }
+  .font-size-ctrl {
+    position: absolute; top: 12px; left: 12px; z-index: 400;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px;
+    padding: 6px 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+  .font-size-ctrl button {
+    width: 26px; height: 26px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc;
+    color: #1e293b; font-weight: 800; font-size: 0.85rem; cursor: pointer; line-height: 1;
+  }
+  .font-size-ctrl button:hover { background: #e2e8f0; }
+  .font-size-ctrl-label { font-size: 0.76rem; font-weight: 700; color: #334155; white-space: nowrap; }
+  .font-size-ctrl #font-size-val { font-size: 0.78rem; font-weight: 700; color: #475569; min-width: 34px; text-align: center; }
   .marker-label { font-size: 20px; font-weight: 800; color: #1e293b; white-space: nowrap; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 0 3px #fff; }
   .dup-badge { font-size: 0.55em; color: #dc2626; font-weight: 700; margin-left: 5px; }
 
@@ -266,6 +279,12 @@
   <div class="map-full-panel" id="map-full-panel">
     <div id="map"></div>
     <div class="map-legend" id="map-legend"></div>
+    <div class="font-size-ctrl" id="font-size-ctrl" title="지도 이름표 글자 크기 조절">
+      <span class="font-size-ctrl-label">🔤 글자 크기 조절</span>
+      <button type="button" onclick="changeMarkerFontSize(-2)">A-</button>
+      <span id="font-size-val">20px</span>
+      <button type="button" onclick="changeMarkerFontSize(2)">A+</button>
+    </div>
   </div>
 
   <div class="bottom-actions">
@@ -314,6 +333,7 @@
   let items = [];         // { name, address, status, lat, lng, extra: {other cols} }
   let map = null;
   let markers = [];
+  let markerFontSize = 20; // 지도 위 이름표 글자 크기(px) - +/- 버튼으로 조절
   let activeInfoWindow = null;
   let visitList = [];     // 방문할 목록 - items의 idx를 "방문 순서대로" 담는 배열 (맨 앞=출발, 맨 뒤=도착)
   let categoryColorMap = new Map(); // 구분(분류) 값 -> 마커 색상
@@ -493,8 +513,7 @@
     });
   }
 
-  function addMarker(item, idx) {
-    const position = new naver.maps.LatLng(item.lat, item.lng);
+  function buildMarkerIcon(item) {
     const label = escapeHtml(item.name || item.address);
     const color = getMarkerColor(item);
     // 지도 위에 이름을 항상 표시 - 핀(역삼각형) 아이콘 바로 옆에 이름표를 나란히 그린다.
@@ -509,11 +528,17 @@
           <path fill="${color}" stroke="white" stroke-width="16" d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0z"/>
           <circle cx="192" cy="192" r="70" fill="white"/>
         </svg>
-        <div class="marker-label">${label}${dupBadge}</div>
+        <div class="marker-label" style="font-size:${markerFontSize}px;">${label}${dupBadge}</div>
       </div>`;
+    return { content: markerHtml, anchor: new naver.maps.Point(PIN_W / 2, PIN_H + stackOffset) };
+  }
+
+  function addMarker(item, idx) {
+    const position = new naver.maps.LatLng(item.lat, item.lng);
+    const label = escapeHtml(item.name || item.address);
     const marker = new naver.maps.Marker({
       position, map, title: item.name || item.address,
-      icon: { content: markerHtml, anchor: new naver.maps.Point(PIN_W / 2, PIN_H + stackOffset) }
+      icon: buildMarkerIcon(item)
     });
 
     const addrText = escapeHtml(item.address);
@@ -550,6 +575,17 @@
     markers.forEach(m => m.marker.setMap(null));
     markers = [];
     if (activeInfoWindow) { activeInfoWindow.close(); activeInfoWindow = null; }
+  }
+
+  function changeMarkerFontSize(delta) {
+    markerFontSize = Math.max(12, Math.min(36, markerFontSize + delta));
+    markers.forEach(m => {
+      const item = items[m.idx];
+      if (!item) return;
+      m.marker.setIcon(buildMarkerIcon(item));
+    });
+    const valEl = document.getElementById('font-size-val');
+    if (valEl) valEl.textContent = markerFontSize + 'px';
   }
 
   function fitMapToMarkers() {
