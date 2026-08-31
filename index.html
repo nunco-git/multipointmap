@@ -1044,7 +1044,7 @@
   header { background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 20px; }
   header h1 { margin: 0; font-size: 1.1rem; color: #0f172a; }
   header p { margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; }
-  #map { width: 100%; height: calc(100vh - 64px); }
+  #map { width: 100%; height: 100%; }
   .popup-box { font-size: 0.85rem; line-height: 1.5; }
   .popup-box .p-title { font-weight: 700; margin-bottom: 4px; color: #0f172a; }
   .popup-box .p-extra { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0; }
@@ -1056,7 +1056,7 @@
   .marker-name-label { font-size: 20px !important; font-weight: 800; color: #1e293b !important; white-space: nowrap; text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 0 3px #fff; }
   .dup-badge { font-size: 0.55em; color: #dc2626; font-weight: 700; margin-left: 5px; }
   .marker-name-label::before { display: none; }
-  .map-legend { display: none; position: absolute; top: 12px; right: 12px; z-index: 400; background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(0,0,0,0.12); max-width: 55%; }
+  .map-legend { display: none; position: absolute; top: 12px; right: 12px; z-index: 900; background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(0,0,0,0.12); max-width: 55%; }
   .map-legend.visible { display: block; }
   .legend-item { display: flex; align-items: center; gap: 6px; padding: 3px 4px; white-space: nowrap; cursor: pointer; border-radius: 5px; transition: opacity 0.15s, background 0.15s; }
   .legend-item:hover { background: #f1f5f9; }
@@ -1070,7 +1070,8 @@
     <h1>📍 주소 위치 지도 (총 ${okItems.length}곳)</h1>
     <p>이 지도는 별도 앱 설치 없이 인터넷 브라우저만 있으면 볼 수 있습니다. 마커를 클릭하면 네이버 지도로 길찾기를 열 수 있습니다.</p>
   </header>
-  <div id="map" style="position:relative;">
+  <div id="map-wrap" style="position:relative; width:100%; height:calc(100vh - 64px);">
+    <div id="map"></div>
     <div class="map-legend" id="map-legend"></div>
   </div>
   <script>
