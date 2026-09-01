@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- 우리가 만든 tel: 링크만 쓰이도록, iOS/안드로이드의 자체 전화번호 자동인식(길게 눌러야 나오는 팝업)을 끈다 -->
 <meta name="format-detection" content="telephone=no">
-<title>엑셀 주소 → 네이버 지도 표시기</title>
+<title>스마트 맵마커</title>
 
 <!-- 엑셀 읽기/쓰기 -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -23,11 +23,13 @@
   .top-header-section { display: flex; gap: 22px; align-items: stretch; margin-bottom: 18px; }
   .top-header-title {
     flex: 0 0 36%; min-width: 240px; display: flex; flex-direction: column; justify-content: center;
-    background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%);
-    border: 1px solid #dbeafe; border-radius: 14px; padding: 22px 26px;
+    background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 100%);
+    border: 1px solid #fed7aa; border-radius: 14px; padding: 22px 26px;
+    box-shadow: 0 1px 3px rgba(194,65,12,0.06);
   }
-  .top-header-title h2 { margin: 0 0 8px 0; color: #0f172a; font-size: 1.55rem; font-weight: 800; display: flex; align-items: center; gap: 8px; letter-spacing: -0.3px; }
-  .top-header-title .subtitle { color: #475569; font-size: 0.85rem; line-height: 1.5; margin: 0; }
+  .top-header-title h2 { margin: 0 0 4px 0; color: #9a3412; font-size: 1.55rem; font-weight: 800; display: flex; align-items: center; gap: 8px; letter-spacing: -0.3px; }
+  .top-header-title .former-name { margin: 0 0 10px 0; color: #c2410c; font-size: 1.085rem; font-weight: 600; letter-spacing: -0.1px; }
+  .top-header-title .subtitle { color: #78350f; opacity: 0.82; font-size: 0.85rem; line-height: 1.5; margin: 0; }
 
   .drop-zone {
     flex: 1 1 64%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
@@ -212,7 +214,8 @@
 <div class="app-container">
   <div class="top-header-section">
     <div class="top-header-title">
-      <h2>📍 엑셀 주소 → 네이버 지도 표시기</h2>
+      <h2>🗺️ 스마트 맵마커</h2>
+      <p class="former-name">(엑셀 주소 → 네이버 지도 표시기)</p>
       <p class="subtitle">엑셀의 주소 목록을 네이버 지도에 한 번에 표시하고, 각 위치로 바로 길찾기를 연결합니다.</p>
     </div>
 
