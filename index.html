@@ -7,6 +7,11 @@
 <meta name="format-detection" content="telephone=no">
 <title>스마트 맵마커</title>
 
+<!-- 제목/본문에 쓰이는 Pretendard 폰트를 실제로 불러온다 (기존엔 font-family에만 지정되어 있어 설치 안 된 PC에서는 시스템 기본 폰트로 대체되고 있었음) -->
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<!-- 제목 전용 폰트: Jua (둥글고 귀여운 스타일) -->
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+
 <!-- 엑셀 읽기/쓰기 -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <!-- PC에서 만든 링크를 휴대폰으로 넘기기 위한 QR코드 생성 라이브러리 -->
@@ -16,9 +21,27 @@
 
 <style>
   * { box-sizing: border-box; }
-  body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 24px; color: #334155; }
 
-  .app-container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.05); padding: 32px; }
+  /* 클릭 가능한 요소는 전부 부드럽게 반응하도록 기본 트랜지션을 깔아준다 */
+  button, .btn-reset, .btn-start, .btn-add-visit, .btn-remove-visit, .btn-route, .btn-route-clear,
+  .btn-export, .btn-map-html, .btn-naver-app, .qr-modal-close, .font-size-ctrl button,
+  .full-list-row, .visit-list-row, .legend-item {
+    transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease,
+                box-shadow 0.18s ease, transform 0.12s ease;
+  }
+  button:active, .btn-reset:active, .btn-start:not(:disabled):active, .btn-add-visit:not(:disabled):active,
+  .btn-route:not(:disabled):active, .btn-route-clear:not(:disabled):active, .btn-export:not(:disabled):active,
+  .btn-map-html:not(:disabled):active, .btn-naver-app:not(:disabled):active {
+    transform: scale(0.96);
+  }
+  body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background: #f8fafc; margin: 0; padding: 24px; color: #334155; }
+
+  .app-container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.05); padding: 32px; animation: app-fade-in 0.4s ease; }
+
+  @keyframes app-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
   .top-header-section { display: flex; gap: 22px; align-items: stretch; margin-bottom: 18px; }
   .top-header-title {
@@ -26,10 +49,18 @@
     background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 100%);
     border: 1px solid #fed7aa; border-radius: 14px; padding: 22px 26px;
     box-shadow: 0 1px 3px rgba(194,65,12,0.06);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   }
-  .top-header-title h2 { margin: 0 0 4px 0; color: #9a3412; font-size: 1.55rem; font-weight: 800; display: flex; align-items: center; gap: 8px; letter-spacing: -0.3px; }
-  .top-header-title .former-name { margin: 0 0 10px 0; color: #c2410c; font-size: 1.085rem; font-weight: 600; letter-spacing: -0.1px; }
-  .top-header-title .subtitle { color: #78350f; opacity: 0.82; font-size: 0.85rem; line-height: 1.5; margin: 0; }
+  .top-header-title:hover { border-color: #fdba74; box-shadow: 0 6px 16px rgba(194,65,12,0.12); transform: translateY(-1px); }
+  .top-header-title h2 {
+    margin: 0 0 6px 0; color: #9a3412; font-size: 1.8rem; font-weight: 400;
+    font-family: 'Jua', 'Pretendard Variable', sans-serif;
+    display: flex; align-items: center; gap: 9px; letter-spacing: -0.3px; line-height: 1.25;
+  }
+  .top-header-title h2 .title-icon { font-size: 1.5rem; filter: drop-shadow(0 1px 1px rgba(154,52,18,0.15)); }
+  .top-header-title h2 .title-text { background: linear-gradient(115deg, #9a3412 20%, #c2410c 80%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .top-header-title .former-name { margin: 0 0 12px 0; color: #c2410c; font-size: 0.95rem; font-weight: 600; letter-spacing: -0.1px; opacity: 0.85; }
+  .top-header-title .subtitle { color: #78350f; opacity: 0.82; font-size: 0.85rem; line-height: 1.55; margin: 0; font-weight: 500; }
 
   .drop-zone {
     flex: 1 1 64%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
@@ -56,7 +87,9 @@
     line-height: 1.55;
     margin-bottom: 18px;
     box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04), 0 1px 2px rgba(16, 24, 40, 0.03);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
   }
+  .security-banner:hover { border-color: #86efac; box-shadow: 0 6px 16px rgba(22,163,74,0.12); transform: translateY(-1px); }
   .security-banner-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
   .security-banner strong { font-size: 1rem; color: #15803d; letter-spacing: -0.2px; }
   .security-features { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -84,13 +117,14 @@
   .drop-zone:hover, .drop-zone.highlight { background-color: #dbeafe; border-color: #1d4ed8; }
   input[type="file"] { display: none; }
 
-  .option-box { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 14px 18px; border-radius: 10px; margin-bottom: 18px; display: none; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .option-box { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 14px 18px; border-radius: 10px; margin-bottom: 18px; display: none; align-items: center; gap: 16px; flex-wrap: wrap; transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease; }
+  .option-box.visible:hover { border-color: #94a3b8; box-shadow: 0 6px 16px rgba(15,23,42,0.08); transform: translateY(-1px); }
   .option-box.visible { display: flex; }
   .option-box .opt-field { display: flex; align-items: center; gap: 8px; }
   .option-box label { font-size: 0.85rem; font-weight: 600; color: #475569; }
   .option-box select { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; background: white; }
   .btn-start { padding: 8px 18px; background: #2563eb; color: white; border: none; border-radius: 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
-  .btn-start:hover { background: #1d4ed8; }
+  .btn-start:hover:not(:disabled) { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(37,99,235,0.25); }
   .btn-start:disabled { background: #cbd5e1; cursor: not-allowed; }
   .start-btn-note { margin-left: 8px; font-size: 0.76rem; color: #64748b; vertical-align: middle; }
 
@@ -98,17 +132,19 @@
   .triple-section .security-banner { flex: 0 0 27%; min-width: 240px; margin-bottom: 0; height: 420px; overflow-y: auto; }
   .triple-section .full-list-panel,
   .triple-section .visit-list-panel { flex: 1 1 36.5%; min-width: 260px; }
-  .full-list-panel, .visit-list-panel { flex: 1 1 50%; min-width: 280px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fafafa; padding: 14px; height: 420px; overflow: auto; resize: vertical; display: flex; flex-direction: column; }
+  .full-list-panel, .visit-list-panel { flex: 1 1 50%; min-width: 280px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fafafa; padding: 14px; height: 420px; overflow: auto; resize: vertical; display: flex; flex-direction: column; transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease; }
+  .full-list-panel:hover, .visit-list-panel:hover { border-color: #93c5fd; box-shadow: 0 6px 16px rgba(37,99,235,0.1); transform: translateY(-1px); }
   .list-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .list-panel-header h3 { margin: 0; font-size: 0.92rem; color: #0f172a; }
   .list-panel-header .hdr-sub { font-size: 0.72rem; color: #64748b; font-weight: normal; display: block; margin-top: 2px; }
 
   .full-list-row, .visit-list-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: white; border: 1px solid #e2e8f0; margin-bottom: 6px; font-size: 0.83rem; }
+  .full-list-row:hover, .visit-list-row:hover { border-color: #93c5fd; box-shadow: 0 2px 6px rgba(37,99,235,0.08); transform: translateX(2px); }
   .full-list-row.selected, .visit-list-row.selected { background: #dbeafe; border-color: #93c5fd; }
   .full-list-row .fl-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
   .full-list-row .fl-status { font-size: 0.72rem; flex-shrink: 0; }
   .btn-add-visit { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: none; background: #2563eb; color: white; font-weight: 700; cursor: pointer; font-size: 0.85rem; line-height: 1; }
-  .btn-add-visit:hover:not(:disabled) { background: #1d4ed8; }
+  .btn-add-visit:hover:not(:disabled) { background: #1d4ed8; transform: scale(1.12); }
   .btn-add-visit:disabled { background: #cbd5e1; cursor: not-allowed; }
   .btn-add-visit.added { background: #a7f3d0; color: #065f46; }
 
@@ -122,7 +158,7 @@
   .badge-start { background: #dcfce7; color: #166534; }
   .badge-end { background: #fee2e2; color: #991b1b; }
   .btn-remove-visit { flex-shrink: 0; border: none; background: transparent; color: #cbd5e1; font-weight: 800; cursor: pointer; font-size: 0.85rem; }
-  .btn-remove-visit:hover { color: #ef4444; }
+  .btn-remove-visit:hover { color: #ef4444; transform: scale(1.2); }
 
   .empty-hint { text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 30px 10px; margin: 0; }
   .list-scroll-body { flex: 1; overflow: auto; }
@@ -134,7 +170,8 @@
   .btn-route-clear:disabled { background: white; color: #cbd5e1; border-color: #cbd5e1; cursor: not-allowed; }
   .btn-route:hover:not(:disabled) { background: #4338ca; }
   .btn-route:disabled { background: #cbd5e1; cursor: not-allowed; }
-  .route-result { display: none; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.82rem; color: #4c1d95; line-height: 1.5; }
+  .route-result { display: none; background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.82rem; color: #4c1d95; line-height: 1.5; transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease; }
+  .route-result.visible:hover { border-color: #c4b5fd; box-shadow: 0 6px 16px rgba(79,70,229,0.12); transform: translateY(-1px); }
   .route-result.visible { display: block; }
   .route-result .rr-order { font-weight: 700; }
   .route-result a { color: #4f46e5; font-weight: 700; text-decoration: none; cursor: pointer; }
@@ -168,7 +205,8 @@
   .dup-badge { font-size: 0.55em; color: #dc2626; font-weight: 700; margin-left: 5px; }
 
   .bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
-  .btn-export { padding: 12px 20px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; }
+  .btn-export { padding: 12px 20px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(16,185,129,0.25); }
+  .btn-export:hover:not(:disabled), .btn-map-html:hover:not(:disabled), .btn-naver-app:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.18); }
   .btn-map-html { background: #7c3aed; }
   .btn-map-html:hover { background: #6d28d9; }
   .btn-naver-app { background: #16a34a; }
@@ -214,7 +252,7 @@
 <div class="app-container">
   <div class="top-header-section">
     <div class="top-header-title">
-      <h2>🗺️ 스마트 맵마커</h2>
+      <h2><span class="title-icon">🗺️</span><span class="title-text">스마트 맵마커</span></h2>
       <p class="former-name">(엑셀 주소 → 네이버 지도 표시기)</p>
       <p class="subtitle">엑셀의 주소 목록을 네이버 지도에 한 번에 표시하고, 각 위치로 바로 길찾기를 연결합니다.</p>
     </div>
