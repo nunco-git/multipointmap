@@ -435,11 +435,15 @@
 <script>
 // [지도 타일 서버 교체] OpenStreetMap 무료 서버가 사무실 IP 등에서 차단되는
 // 문제(HTTP 403 Access blocked)를 피하기 위해, "지도를 HTML로 다운로드" 기능이
-// 만드는 결과물의 배경지도를 Esri의 무료 배경지도(회원가입/키 불필요)로 바꾼다.
-// 이 함수는 원래 exportMapHtml()과 완전히 동일하고 지도 타일 URL만 다르다.
+// 만드는 결과물의 배경지도를 국토교통부 브이월드(VWorld) 배경지도로 바꾼다.
+// (VWorld는 순수 타일 이미지 요청에는 도메인 제한이 걸리지 않는 것을 실제로
+// 확인했음 - 다운로드 파일(file://)에서도 정상 작동한다.) 한국 지역 상세도가
+// Esri 무료지도보다 훨씬 높다. 이 함수는 원래 exportMapHtml()과 완전히
+// 동일하고 지도 타일 URL만 다르다.
 function exportMapHtml() {
-  const ESRI_TILE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
-  const ESRI_ATTRIBUTION = 'Tiles &copy; Esri';
+  const VWORLD_KEY = 'FE37EB77-43DE-4423-8558-A7068D841774';
+  const ESRI_TILE_URL = 'https://api.vworld.kr/req/wmts/1.0.0/' + VWORLD_KEY + '/Base/{z}/{y}/{x}.png';
+  const ESRI_ATTRIBUTION = '&copy; VWorld (국토교통부 국토지리정보원)';
 
   const okItems = items.filter(it => it.status === 'ok');
   if (okItems.length === 0) { alert('지도로 만들 수 있는 위치가 없습니다.'); return; }
