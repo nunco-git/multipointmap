@@ -352,7 +352,7 @@
   <div class="qr-modal-box">
     <button class="qr-modal-close" onclick="closeQrModal()">✕</button>
     <h3>📱 휴대폰으로 스캔해서 열기</h3>
-    <p>휴대폰 카메라(또는 네이버앱 QR스캔)로 아래 QR코드를 비추면, 그 자리에서 바로 네이버 지도 앱이 열립니다.</p>
+    <p>휴대폰 카메라(또는 네이버앱 QR스캔)로 아래 QR코드를 비추면, 그 자리에서 바로 네이버 지도 앱이 열립니다.<br><b>⚠️ 네이버 지도 앱의 QR스캔, 또는 네이버·구글 카메라로 인식해야 경로가 정상적으로 표시됩니다. 다음(Daum) 등 일부 앱에서는 인식이 안 되거나 엉뚱하게 열릴 수 있습니다.</b></p>
     <div id="qr-code-box"></div>
     <p class="qr-modal-note" id="qr-modal-note"></p>
   </div>
@@ -410,63 +410,34 @@
 </script>
 
 <script>
-// [범용 QR코드로 교체]
-// 문제: 기존 QR코드는 네이버 지도 "전용" 딥링크(nmap://route/car?...)를 담고 있었다.
-// nmap://는 네이버 지도 앱만 이해하는 특수 스킴이라, 일반 휴대폰 카메라나 다음(Daum) 등
-// 다른 QR 스캐너는 이 링크를 제대로 인식하지 못하거나(인식 실패), 엉뚱하게 검색어로
-// 처리해버려서(엉뚱한 곳으로 이동) 문제가 생긴다. 네이버 앱 자체 스캐너나, 안드로이드에서
-// 네이버지도 앱이 nmap:// 스킴을 시스템에 등록해둔 경우에만 정상 동작했던 것.
-// 해결: 모든 카메라/QR 앱이 항상 인식하는 일반 https:// 웹 링크로 바꾼다.
-// 네이버 지도 웹 길찾기 페이지(map.naver.com/p/directions)는 좌표를 "구글 지도처럼"
-// 위경도(WGS84)가 아니라 실측미터 단위인 Web Mercator(EPSG:3857) 좌표로 받기 때문에,
-// 위경도를 Web Mercator로 변환해서 넣어준다. 이 페이지는 링크를 열면 웹브라우저에서
-// 먼저 뜨고, 네이버 지도 앱이 설치되어 있으면 앱으로 이어서 열 수 있는 표준 웹페이지라
-// 어떤 카메라·QR 앱으로 찍어도 항상 정상적으로 열린다.
+// [nmap:// 딥링크로 복구]
+// 범용 https 웹 링크(map.naver.com/p/directions)로 바꿔봤지만, 경유지가 여러 곳일 때
+// 전부 다 표시되지 않는 문제가 있어(네이버가 이 웹 주소의 경유지 다중 처리를 공식
+// 문서화하지 않음) 경유지를 전부 담을 수 있는 원래의 네이버 지도 앱 전용 딥링크
+// (nmap://route/car?...)로 되돌린다. 이 방식은 네이버 지도 앱의 QR스캔이나,
+// 앱을 인식할 수 있는 카메라(네이버·구글 카메라 등)로 찍어야 정상적으로 경로가 열리고,
+// 다음(Daum) 등 일부 앱에서는 다시 인식이 안 될 수 있다 — 이 안내를 모달에 표시한다.
+// (QR 밀도를 낮추기 위해 이름은 짧게 줄이고, QR 이미지 크기와 보정 레벨도 조정한 상태는 유지.)
 (function () {
   function shortenLabel(text) {
     const s = String(text || '').trim();
     return s.length > 10 ? s.slice(0, 10) : s;
   }
 
-  // 위도/경도(WGS84) → Web Mercator(EPSG:3857) 좌표 변환 (네이버 지도 웹이 쓰는 좌표계)
-  function toWebMercator(lat, lng) {
-    const R = 6378137;
-    const x = (lng * Math.PI / 180) * R;
-    const y = Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI / 180) / 2)) * R;
-    return { x: Math.round(x), y: Math.round(y) };
-  }
-
-  function toSegment(item) {
-    const { x, y } = toWebMercator(item.lat, item.lng);
-    return x + ',' + y + ',' + encodeURIComponent(shortenLabel(item.name || item.address));
-  }
-
   window.buildNaverRouteAppUrlFromOrderedItems = function (orderedItems) {
-    const points = orderedItems.slice(0, 7); // 출발+도착+경유지 합쳐 최대 7개
-    return 'https://map.naver.com/p/directions/' + points.map(toSegment).join('/') + '/-/car';
-  };
-
-  // 단일 지점: 현재 위치(-)에서 해당 지점까지 길찾기 웹 링크로 통일
-  window.showAllInNaverApp = function () {
-    if (visitList.length < 1) {
-      alert('먼저 방문 목록에 장소를 추가해 주세요.');
-      return;
-    }
-    const orderedItems = visitList.map(idx => items[idx]);
-    if (orderedItems.length === 1) {
-      const item = orderedItems[0];
-      const url = 'https://map.naver.com/p/directions/-/' + toSegment(item) + '/-/car';
-      openNmapLink(url, '"' + (item.name || item.address) + '" 위치로 길찾기가 열립니다.');
-      return;
-    }
-    let ordered = orderedItems;
-    let note = '방문 목록 ' + ordered.length + '곳 경로가 열립니다.';
-    if (orderedItems.length > 7) {
-      ordered = orderedItems.slice(0, 7);
-      note = '방문 목록이 많아 앞 7곳까지만(총 ' + orderedItems.length + '곳) 경로에 포함됩니다.';
-    }
-    const url = buildNaverRouteAppUrlFromOrderedItems(ordered);
-    openNmapLink(url, note);
+    const start = orderedItems[0];
+    const end = orderedItems[orderedItems.length - 1];
+    const mids = orderedItems.slice(1, -1).slice(0, 5);
+    let url = 'nmap://route/car?slat=' + start.lat + '&slng=' + start.lng +
+      '&sname=' + encodeURIComponent(shortenLabel(start.name || start.address)) +
+      '&dlat=' + end.lat + '&dlng=' + end.lng +
+      '&dname=' + encodeURIComponent(shortenLabel(end.name || end.address));
+    mids.forEach((item, i) => {
+      url += '&v' + (i + 1) + 'lat=' + item.lat + '&v' + (i + 1) + 'lng=' + item.lng +
+        '&v' + (i + 1) + 'name=' + encodeURIComponent(shortenLabel(item.name || item.address));
+    });
+    url += '&appname=' + encodeURIComponent(location.href);
+    return url;
   };
 
   window.openNmapLink = function (url, note) {
