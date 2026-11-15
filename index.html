@@ -314,6 +314,7 @@
         <h3>🧭 방문할 목록<span class="hdr-sub">드래그로 순서 변경 · 맨 위=출발, 맨 아래=도착 · 경유지 5개 포함 최대 7개 가능</span></h3>
         <div class="route-toolbar-inline">
           <button class="btn-route btn-round-trip" id="round-trip-btn" onclick="toggleRoundTrip()" disabled>🔁 출발 도착 같음</button>
+          <button class="btn-route" id="add-all-btn" onclick="addAllToVisit()" disabled title="좌표 변환에 성공한 주소를 모두 방문 목록에 추가">➕ 전체 추가</button>
           <button class="btn-route btn-route-clear" id="route-clear-btn" onclick="clearVisitList()" disabled>비우기</button>
         </div>
       </div>
@@ -822,6 +823,43 @@ new MutationObserver(later).observe(document.documentElement,{childList:true,sub
   // 안내 문구 수정 (7곳 제한은 QR에만 해당)
   var sub = document.querySelector('#visit-list-panel .hdr-sub');
   if (sub) sub.textContent = '드래그로 순서 변경 · 맨 위=출발, 맨 아래=도착 · 지도 경로는 개수 제한 없음 (QR은 7곳씩 구간 나눔)';
+})();
+</script>
+<script>
+// [전체 추가] 전체 주소 목록에서 좌표 변환에 성공한 항목을 한 번에 방문 목록에 추가한다.
+// (이미 담긴 항목은 건너뛰고, '출발=도착' 상태면 새 항목을 도착지(맨 끝) 앞에 넣어 도착지를 유지한다.)
+(function () {
+  var btn = document.getElementById('add-all-btn');
+  if (!btn) return;
+
+  function pendingIdx() {
+    var out = [];
+    items.forEach(function (it, i) { if (it && it.status === 'ok' && visitList.indexOf(i) === -1) out.push(i); });
+    return out;
+  }
+  function updateBtn() { btn.disabled = pendingIdx().length === 0; }
+
+  window.addAllToVisit = function () {
+    var add = pendingIdx();
+    if (add.length === 0) return;
+    var roundTrip = visitList.length >= 2 && visitList[0] === visitList[visitList.length - 1];
+    if (roundTrip) {
+      var last = visitList[visitList.length - 1];
+      visitList = visitList.slice(0, -1).concat(add, [last]);
+    } else {
+      visitList = visitList.concat(add);
+    }
+    clearRoute();
+    renderFullList();
+    renderVisitList();
+  };
+
+  // 목록이 다시 그려질 때마다(지오코딩 진행·추가·삭제 등) 버튼 활성 상태도 갱신
+  var origRenderFull = renderFullList;
+  window.renderFullList = function () { origRenderFull(); updateBtn(); };
+  var origRenderVisit = renderVisitList;
+  window.renderVisitList = function () { origRenderVisit(); updateBtn(); };
+  updateBtn();
 })();
 </script>
 </body>
