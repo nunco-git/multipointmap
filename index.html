@@ -498,49 +498,9 @@ function exportMapHtml() {
     };
   }));
   const legend = JSON.stringify([...categoryColorMap.entries()]);
+  const routeInfoJson = JSON.stringify((window.getRouteExportData && window.getRouteExportData()) || null).replace(/</g, '\\u003c');
 
-  const html = '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<meta name="format-detection" content="telephone=no">\n<title>주소 위치 지도 (' + okItems.length + '곳)</title>\n<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />\n<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><' + '/script>\n<style>\n  * { box-sizing: border-box; }\n  body { margin: 0; font-family: \'Pretendard\', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background: #f8fafc; }\n  header { background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 20px; }\n  header h1 { margin: 0; font-size: 1.1rem; color: #0f172a; }\n  header p { margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; }\n  #map { width: 100%; height: 100%; }\n  .popup-box { font-size: 0.85rem; line-height: 1.5; }\n  .popup-box .p-title { font-weight: 700; margin-bottom: 4px; color: #0f172a; }\n  .popup-box .p-extra { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0; }\n  .popup-box .p-extra div { display: flex; gap: 4px; }\n  .popup-box .p-extra .p-key { color: #64748b; font-weight: 600; flex-shrink: 0; }\n  .tel-link { color: #16a34a; font-weight: 700; text-decoration: none; }\n  .tel-link:hover { text-decoration: underline; }\n  .popup-box a { display: inline-block; margin-top: 6px; padding: 5px 10px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; }\n  .marker-name-label { font-size: 20px !important; font-weight: 800; color: #000 !important; -webkit-text-fill-color: #000 !important; white-space: nowrap; text-shadow: none !important; -webkit-text-stroke: 0 !important; }\n  .dup-badge { font-size: 0.55em; color: #dc2626; font-weight: 700; margin-left: 5px; }\n  .marker-name-label::before { display: none; }\n  .map-legend { display: none; position: absolute; top: 12px; right: 12px; z-index: 900; background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(0,0,0,0.12); max-width: 55%; }\n  .map-legend.visible { display: block; }\n  .legend-item { display: flex; align-items: center; gap: 6px; padding: 3px 4px; white-space: nowrap; cursor: pointer; border-radius: 5px; transition: opacity 0.15s, background 0.15s; }\n  .legend-item:hover { background: #f1f5f9; }\n  .legend-item-off { opacity: 0.35; text-decoration: line-through; }\n  .legend-check { pointer-events: none; margin: 0; flex-shrink: 0; width: 13px; height: 13px; accent-color: #2563eb; }\n  .legend-dot { flex-shrink: 0; display: inline-block; font-size: 12px; line-height: 1; width: 12px; text-align: center; }\n
-/*mobile-fontfix*/
-@media (max-width:640px){
-.top-header-title .subtitle{font-size:16px !important}
-.drop-zone .drop-hint{font-size:14px !important}
-.security-features li{font-size:15px !important}
-.security-features .feat-icon{font-size:15px !important}
-.security-features strong{font-size:15px !important}
-.btn-reset{font-size:14px !important}
-.option-box label{font-size:16px !important}
-.option-box select{font-size:16px !important}
-.btn-start{font-size:16px !important}
-.start-btn-note{font-size:14px !important}
-.list-panel-header .hdr-sub{font-size:14px !important}
-.full-list-row, .visit-list-row{font-size:15px !important}
-.full-list-row .fl-status{font-size:14px !important}
-.btn-add-visit{font-size:16px !important}
-.visit-list-row .vl-order{font-size:14px !important}
-.badge-point{font-size:14px !important}
-.btn-remove-visit{font-size:16px !important}
-.empty-hint{font-size:15px !important}
-.btn-route{font-size:14px !important}
-.route-result{font-size:15px !important}
-.map-legend{font-size:14px !important}
-.legend-dot{font-size:14px !important}
-.font-size-ctrl button{font-size:16px !important}
-.font-size-ctrl-label{font-size:14px !important}
-.font-size-ctrl #font-size-val{font-size:14px !important}
-.dup-badge{font-size:14px !important}
-.qr-modal-box p{font-size:16px !important}
-.qr-modal-note{font-size:14px !important}
-#status{font-size:16px !important}
-.infowindow-box{font-size:15px !important}
-.infowindow-box .iw-btns a, .infowindow-box .iw-btns button{font-size:14px !important}
-\n  header p{font-size:15px !important}
-\n  .popup-box{font-size:16px !important}
-\n  .popup-box a{font-size:14px !important}
-\n  .dup-badge{font-size:14px !important}
-\n  .map-legend{font-size:14px !important}
-\n  .legend-dot{font-size:14px !important}
-}
-</style>\n</head>\n<body>\n  <header>\n    <h1>\ud83d\udccd 주소 위치 지도 (총 ' + okItems.length + '곳)</h1>\n    <p>이 지도는 별도 앱 설치 없이 인터넷 브라우저만 있으면 볼 수 있습니다. 마커를 클릭하면 네이버 지도로 길찾기를 열 수 있습니다.</p>\n  </header>\n  <div id="map-wrap" style="position:relative; width:100%; height:calc(100vh - 64px);">\n    <div id="map"></div>\n    <div class="map-legend" id="map-legend"></div>\n  </div>\n  <script>\n    function escapeHtml(s) {\n      return String(s).replace(/&/g, \'&amp;\').replace(/</g, \'&lt;\').replace(/>/g, \'&gt;\').replace(/"/g, \'&quot;\');\n    }\n    function normalizePhoneDigits(value) {\n      let digits = String(value).replace(/[^0-9]/g, \'\');\n      if (!digits) return null;\n      if (digits[0] !== \'0\' && (digits.length === 9 || digits.length === 10)) {\n        digits = \'0\' + digits;\n      }\n      return /^0\\d{8,10}$/.test(digits) ? digits : null;\n    }\n    var TEL_STYLE = \'color:#16a34a; font-weight:700; text-decoration:none;\';\n    var PHONE_SUBSTR_PATTERN = /0\\d{1,2}[-.\\s]?\\d{3,4}[-.\\s]?\\d{4}/g;\n    function isFaxLabel(key) {\n      return /팩스|fax/i.test(String(key || \'\'));\n    }\n    function formatExtraValue(value, key) {\n      var rawStr = String(value);\n      if (isFaxLabel(key)) return escapeHtml(rawStr);\n      var trimmed = rawStr.trim();\n\n      if (/^[0-9]+$/.test(trimmed)) {\n        var wholeDigits = normalizePhoneDigits(trimmed);\n        if (wholeDigits) {\n          return \'<a href="tel:\' + wholeDigits + \'" style="\' + TEL_STYLE + \'">\ud83d\udcde \' + escapeHtml(wholeDigits) + \'</a>\';\n        }\n        return escapeHtml(rawStr);\n      }\n\n      PHONE_SUBSTR_PATTERN.lastIndex = 0;\n      if (!PHONE_SUBSTR_PATTERN.test(rawStr)) return escapeHtml(rawStr);\n      PHONE_SUBSTR_PATTERN.lastIndex = 0;\n\n      var result = \'\';\n      var lastIndex = 0;\n      var match;\n      while ((match = PHONE_SUBSTR_PATTERN.exec(rawStr)) !== null) {\n        result += escapeHtml(rawStr.slice(lastIndex, match.index));\n        var matchedText = match[0];\n        var digits = matchedText.replace(/[^0-9]/g, \'\');\n        result += \'<a href="tel:\' + digits + \'" style="\' + TEL_STYLE + \'">\ud83d\udcde \' + escapeHtml(matchedText) + \'</a>\';\n        lastIndex = match.index + matchedText.length;\n      }\n      result += escapeHtml(rawStr.slice(lastIndex));\n      return result;\n    }\n\n    const points = ' + points + ';\n    const legend = ' + legend + ';\n    const SHAPE_LABEL = { circle: \'\u25cf\', square: \'\u25a0\', triangle: \'\u25b2\' };\n    function markerShapeSvg(shape, color) {\n      if (shape === \'square\') return \'<rect x="12" y="12" width="76" height="76" rx="10" fill="\' + color + \'" stroke="white" stroke-width="8"/>\';\n      if (shape === \'triangle\') return \'<polygon points="50,6 91,75 9,75" fill="\' + color + \'" stroke="white" stroke-width="8" stroke-linejoin="round"/>\';\n      return \'<circle cx="50" cy="50" r="42" fill="\' + color + \'" stroke="white" stroke-width="8"/>\';\n    }\n    const map = L.map(\'map\');\n    L.tileLayer(\'' + ESRI_TILE_URL + '\', {\n      maxZoom: 19,\n      attribution: \'' + ESRI_ATTRIBUTION + '\'\n    }).addTo(map);\n\n    const activeCategories = new Set(legend.map(function (entry) { return entry[0]; }));\n\n    function renderLegendItems() {\n      if (legend.length === 0) return;\n      const legendEl = document.getElementById(\'map-legend\');\n      legendEl.innerHTML = legend.map(function (entry, i) {\n        const style = entry[1] || {};\n        const on = activeCategories.has(entry[0]);\n        return \'<div class="legend-item\' + (on ? \'\' : \' legend-item-off\') + \'" data-idx="\' + i + \'" title="클릭하면 지도에서 표시/숨김이 전환됩니다">\' +\n          \'<input type="checkbox" class="legend-check" \' + (on ? \'checked\' : \'\') + \' tabindex="-1">\' +\n          \'<span class="legend-dot" style="color:\' + (style.color || \'#2563eb\') + \';">\' + (SHAPE_LABEL[style.shape] || \'\u25cf\') + \'</span>\' + escapeHtml(entry[0]) + \'</div>\';\n      }).join(\'\');\n      legendEl.querySelectorAll(\'.legend-item\').forEach(function (el) {\n        el.addEventListener(\'click\', function () {\n          const idx = parseInt(el.dataset.idx, 10);\n          toggleCategory(legend[idx][0]);\n        });\n      });\n      legendEl.classList.add(\'visible\');\n    }\n\n    function toggleCategory(cat) {\n      if (activeCategories.has(cat)) activeCategories.delete(cat);\n      else activeCategories.add(cat);\n      const on = activeCategories.has(cat);\n      markers.forEach(function (m) {\n        if (m.cat !== cat) return;\n        if (on) { if (!map.hasLayer(m.marker)) m.marker.addTo(map); }\n        else { if (map.hasLayer(m.marker)) map.removeLayer(m.marker); }\n      });\n      renderLegendItems();\n    }\n\n    renderLegendItems();\n\n    const markers = [];\n    points.forEach(p => {\n      const color = p.color || \'#2563eb\';\n      const shape = p.shape || \'circle\';\n      const PIN_SIZE = 24;\n      const STACK_STEP = 26;\n      const stackOffset = (p.dupIndex || 0) * STACK_STEP;\n      const dupBadge = (p.dupCount || 1) > 1 ? \'<span class="dup-badge">동일 주소</span>\' : \'\';\n      const icon = L.divIcon({\n        className: \'\',\n        html: \'<div style="position:relative; display:flex; align-items:center; gap:3px;">\' +\n          \'<svg width="\' + PIN_SIZE + \'" height="\' + PIN_SIZE + \'" viewBox="0 0 100 100" style="display:block; flex-shrink:0;">\' +\n          markerShapeSvg(shape, color) +\n          \'</svg>\' +\n          \'<div class="marker-name-label" style="color:#000 !important; -webkit-text-fill-color:#000; text-shadow:none;">\' + escapeHtml(p.name) + dupBadge + \'</div>\' +\n          \'</div>\',\n        iconSize: [PIN_SIZE, PIN_SIZE],\n        iconAnchor: [PIN_SIZE / 2, PIN_SIZE / 2 + stackOffset]\n      });\n      const marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);\n\n      const extraKeys = Object.keys(p.extra || {}).filter(k => String(p.extra[k]).trim() !== \'\');\n      const extraHtml = extraKeys.length > 0\n        ? \'<div class="p-extra">\' + extraKeys.map(k => \'<div><span class="p-key">\' + escapeHtml(k) + \':</span><span>\' + formatExtraValue(p.extra[k], k) + \'</span></div>\').join(\'\') + \'</div>\'\n        : \'\';\n\n      const webUrl = \'https://map.naver.com/p/search/\' + encodeURIComponent(p.address);\n      marker.bindPopup(\n        \'<div class="popup-box"><div class="p-title">\' + escapeHtml(p.name) + \'</div>\' +\n        \'<div>\' + escapeHtml(p.address) + \'</div>\' +\n        extraHtml +\n        \'<a href="\' + webUrl + \'" target="_blank" rel="noopener noreferrer">\ud83c\udf10 네이버 지도에서 길찾기</a></div>\'\n      );\n      markers.push({ marker: marker, cat: p.cat || \'(미지정)\' });\n    });\n\n    if (points.length === 1) {\n      map.setView([points[0].lat, points[0].lng], 16);\n    } else {\n      map.fitBounds(L.featureGroup(markers.map(function (m) { return m.marker; })).getBounds(), { padding: [30, 30] });\n    }\n  <' + '/script>\n</body>\n</html>';
+  const html = '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<meta name="format-detection" content="telephone=no">\n<title>주소 위치 지도 (' + okItems.length + '곳)</title>\n<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />\n<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><' + '/script>\n<style>\n  * { box-sizing: border-box; }\n  body { margin: 0; font-family: \'Pretendard\', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background: #f8fafc; }\n  header { background: white; border-bottom: 1px solid #e2e8f0; padding: 14px 20px; }\n  header h1 { margin: 0; font-size: 1.1rem; color: #0f172a; }\n  header p { margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; }\n  #map { width: 100%; height: 100%; }\n  .popup-box { font-size: 0.85rem; line-height: 1.5; }\n  .popup-box .p-title { font-weight: 700; margin-bottom: 4px; color: #0f172a; }\n  .popup-box .p-extra { margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0; }\n  .popup-box .p-extra div { display: flex; gap: 4px; }\n  .popup-box .p-extra .p-key { color: #64748b; font-weight: 600; flex-shrink: 0; }\n  .tel-link { color: #16a34a; font-weight: 700; text-decoration: none; }\n  .tel-link:hover { text-decoration: underline; }\n  .popup-box a { display: inline-block; margin-top: 6px; padding: 5px 10px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; }\n  .marker-name-label { font-size: 20px !important; font-weight: 800; color: #000 !important; -webkit-text-fill-color: #000 !important; white-space: nowrap; text-shadow: none !important; -webkit-text-stroke: 0 !important; }\n  .dup-badge { font-size: 0.55em; color: #dc2626; font-weight: 700; margin-left: 5px; }\n  .marker-name-label::before { display: none; }\n  .map-legend { display: none; position: absolute; top: 12px; right: 12px; z-index: 900; background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; box-shadow: 0 2px 8px rgba(0,0,0,0.12); max-width: 55%; }\n  .map-legend.visible { display: block; }\n  .legend-item { display: flex; align-items: center; gap: 6px; padding: 3px 4px; white-space: nowrap; cursor: pointer; border-radius: 5px; transition: opacity 0.15s, background 0.15s; }\n  .legend-item:hover { background: #f1f5f9; }\n  .legend-item-off { opacity: 0.35; text-decoration: line-through; }\n  .legend-check { pointer-events: none; margin: 0; flex-shrink: 0; width: 13px; height: 13px; accent-color: #2563eb; }\n  .legend-dot { flex-shrink: 0; display: inline-block; font-size: 12px; line-height: 1; width: 12px; text-align: center; }\n\n/*mobile-fontfix*/\n@media (max-width:640px){\n.top-header-title .subtitle{font-size:16px !important}\n.drop-zone .drop-hint{font-size:14px !important}\n.security-features li{font-size:15px !important}\n.security-features .feat-icon{font-size:15px !important}\n.security-features strong{font-size:15px !important}\n.btn-reset{font-size:14px !important}\n.option-box label{font-size:16px !important}\n.option-box select{font-size:16px !important}\n.btn-start{font-size:16px !important}\n.start-btn-note{font-size:14px !important}\n.list-panel-header .hdr-sub{font-size:14px !important}\n.full-list-row, .visit-list-row{font-size:15px !important}\n.full-list-row .fl-status{font-size:14px !important}\n.btn-add-visit{font-size:16px !important}\n.visit-list-row .vl-order{font-size:14px !important}\n.badge-point{font-size:14px !important}\n.btn-remove-visit{font-size:16px !important}\n.empty-hint{font-size:15px !important}\n.btn-route{font-size:14px !important}\n.route-result{font-size:15px !important}\n.map-legend{font-size:14px !important}\n.legend-dot{font-size:14px !important}\n.font-size-ctrl button{font-size:16px !important}\n.font-size-ctrl-label{font-size:14px !important}\n.font-size-ctrl #font-size-val{font-size:14px !important}\n.dup-badge{font-size:14px !important}\n.qr-modal-box p{font-size:16px !important}\n.qr-modal-note{font-size:14px !important}\n#status{font-size:16px !important}\n.infowindow-box{font-size:15px !important}\n.infowindow-box .iw-btns a, .infowindow-box .iw-btns button{font-size:14px !important}\n\n  header p{font-size:15px !important}\n\n  .popup-box{font-size:16px !important}\n\n  .popup-box a{font-size:14px !important}\n\n  .dup-badge{font-size:14px !important}\n\n  .map-legend{font-size:14px !important}\n\n  .legend-dot{font-size:14px !important}\n}\n</style>\n</head>\n<body>\n  <header>\n    <h1>\ud83d\udccd 주소 위치 지도 (총 ' + okItems.length + '곳)</h1>\n    <p>이 지도는 별도 앱 설치 없이 인터넷 브라우저만 있으면 볼 수 있습니다. 마커를 클릭하면 네이버 지도로 길찾기를 열 수 있습니다.</p>\n  </header>\n  <div id="map-wrap" style="position:relative; width:100%; height:calc(100vh - 64px);">\n    <div id="map"></div>\n    <div class="map-legend" id="map-legend"></div>\n  </div>\n  <script>\n    function escapeHtml(s) {\n      return String(s).replace(/&/g, \'&amp;\').replace(/</g, \'&lt;\').replace(/>/g, \'&gt;\').replace(/"/g, \'&quot;\');\n    }\n    function normalizePhoneDigits(value) {\n      let digits = String(value).replace(/[^0-9]/g, \'\');\n      if (!digits) return null;\n      if (digits[0] !== \'0\' && (digits.length === 9 || digits.length === 10)) {\n        digits = \'0\' + digits;\n      }\n      return /^0\\d{8,10}$/.test(digits) ? digits : null;\n    }\n    var TEL_STYLE = \'color:#16a34a; font-weight:700; text-decoration:none;\';\n    var PHONE_SUBSTR_PATTERN = /0\\d{1,2}[-.\\s]?\\d{3,4}[-.\\s]?\\d{4}/g;\n    function isFaxLabel(key) {\n      return /팩스|fax/i.test(String(key || \'\'));\n    }\n    function formatExtraValue(value, key) {\n      var rawStr = String(value);\n      if (isFaxLabel(key)) return escapeHtml(rawStr);\n      var trimmed = rawStr.trim();\n\n      if (/^[0-9]+$/.test(trimmed)) {\n        var wholeDigits = normalizePhoneDigits(trimmed);\n        if (wholeDigits) {\n          return \'<a href="tel:\' + wholeDigits + \'" style="\' + TEL_STYLE + \'">\ud83d\udcde \' + escapeHtml(wholeDigits) + \'</a>\';\n        }\n        return escapeHtml(rawStr);\n      }\n\n      PHONE_SUBSTR_PATTERN.lastIndex = 0;\n      if (!PHONE_SUBSTR_PATTERN.test(rawStr)) return escapeHtml(rawStr);\n      PHONE_SUBSTR_PATTERN.lastIndex = 0;\n\n      var result = \'\';\n      var lastIndex = 0;\n      var match;\n      while ((match = PHONE_SUBSTR_PATTERN.exec(rawStr)) !== null) {\n        result += escapeHtml(rawStr.slice(lastIndex, match.index));\n        var matchedText = match[0];\n        var digits = matchedText.replace(/[^0-9]/g, \'\');\n        result += \'<a href="tel:\' + digits + \'" style="\' + TEL_STYLE + \'">\ud83d\udcde \' + escapeHtml(matchedText) + \'</a>\';\n        lastIndex = match.index + matchedText.length;\n      }\n      result += escapeHtml(rawStr.slice(lastIndex));\n      return result;\n    }\n\n    const points = ' + points + ';\n    const legend = ' + legend + ';\n    const SHAPE_LABEL = { circle: \'\u25cf\', square: \'\u25a0\', triangle: \'\u25b2\' };\n    function markerShapeSvg(shape, color) {\n      if (shape === \'square\') return \'<rect x="12" y="12" width="76" height="76" rx="10" fill="\' + color + \'" stroke="white" stroke-width="8"/>\';\n      if (shape === \'triangle\') return \'<polygon points="50,6 91,75 9,75" fill="\' + color + \'" stroke="white" stroke-width="8" stroke-linejoin="round"/>\';\n      return \'<circle cx="50" cy="50" r="42" fill="\' + color + \'" stroke="white" stroke-width="8"/>\';\n    }\n    const map = L.map(\'map\');\n    L.tileLayer(\'' + ESRI_TILE_URL + '\', {\n      maxZoom: 19,\n      attribution: \'' + ESRI_ATTRIBUTION + '\'\n    }).addTo(map);\n\n    const activeCategories = new Set(legend.map(function (entry) { return entry[0]; }));\n\n    function renderLegendItems() {\n      if (legend.length === 0) return;\n      const legendEl = document.getElementById(\'map-legend\');\n      legendEl.innerHTML = legend.map(function (entry, i) {\n        const style = entry[1] || {};\n        const on = activeCategories.has(entry[0]);\n        return \'<div class="legend-item\' + (on ? \'\' : \' legend-item-off\') + \'" data-idx="\' + i + \'" title="클릭하면 지도에서 표시/숨김이 전환됩니다">\' +\n          \'<input type="checkbox" class="legend-check" \' + (on ? \'checked\' : \'\') + \' tabindex="-1">\' +\n          \'<span class="legend-dot" style="color:\' + (style.color || \'#2563eb\') + \';">\' + (SHAPE_LABEL[style.shape] || \'\u25cf\') + \'</span>\' + escapeHtml(entry[0]) + \'</div>\';\n      }).join(\'\');\n      legendEl.querySelectorAll(\'.legend-item\').forEach(function (el) {\n        el.addEventListener(\'click\', function () {\n          const idx = parseInt(el.dataset.idx, 10);\n          toggleCategory(legend[idx][0]);\n        });\n      });\n      legendEl.classList.add(\'visible\');\n    }\n\n    function toggleCategory(cat) {\n      if (activeCategories.has(cat)) activeCategories.delete(cat);\n      else activeCategories.add(cat);\n      const on = activeCategories.has(cat);\n      markers.forEach(function (m) {\n        if (m.cat !== cat) return;\n        if (on) { if (!map.hasLayer(m.marker)) m.marker.addTo(map); }\n        else { if (map.hasLayer(m.marker)) map.removeLayer(m.marker); }\n      });\n      renderLegendItems();\n    }\n\n    renderLegendItems();\n\n    const markers = [];\n    points.forEach(p => {\n      const color = p.color || \'#2563eb\';\n      const shape = p.shape || \'circle\';\n      const PIN_SIZE = 24;\n      const STACK_STEP = 26;\n      const stackOffset = (p.dupIndex || 0) * STACK_STEP;\n      const dupBadge = (p.dupCount || 1) > 1 ? \'<span class="dup-badge">동일 주소</span>\' : \'\';\n      const icon = L.divIcon({\n        className: \'\',\n        html: \'<div style="position:relative; display:flex; align-items:center; gap:3px;">\' +\n          \'<svg width="\' + PIN_SIZE + \'" height="\' + PIN_SIZE + \'" viewBox="0 0 100 100" style="display:block; flex-shrink:0;">\' +\n          markerShapeSvg(shape, color) +\n          \'</svg>\' +\n          \'<div class="marker-name-label" style="color:#000 !important; -webkit-text-fill-color:#000; text-shadow:none;">\' + escapeHtml(p.name) + dupBadge + \'</div>\' +\n          \'</div>\',\n        iconSize: [PIN_SIZE, PIN_SIZE],\n        iconAnchor: [PIN_SIZE / 2, PIN_SIZE / 2 + stackOffset]\n      });\n      const marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);\n\n      const extraKeys = Object.keys(p.extra || {}).filter(k => String(p.extra[k]).trim() !== \'\');\n      const extraHtml = extraKeys.length > 0\n        ? \'<div class="p-extra">\' + extraKeys.map(k => \'<div><span class="p-key">\' + escapeHtml(k) + \':</span><span>\' + formatExtraValue(p.extra[k], k) + \'</span></div>\').join(\'\') + \'</div>\'\n        : \'\';\n\n      const webUrl = \'https://map.naver.com/p/search/\' + encodeURIComponent(p.address);\n      marker.bindPopup(\n        \'<div class="popup-box"><div class="p-title">\' + escapeHtml(p.name) + \'</div>\' +\n        \'<div>\' + escapeHtml(p.address) + \'</div>\' +\n        extraHtml +\n        \'<a href="\' + webUrl + \'" target="_blank" rel="noopener noreferrer">\ud83c\udf10 네이버 지도에서 길찾기</a></div>\'\n      );\n      markers.push({ marker: marker, cat: p.cat || \'(미지정)\' });\n    });\n\n    // ---- 방문 목록 경로선 ----\n    const routeInfo = ' + routeInfoJson + ';\n    (function () {\n  if (!routeInfo || !routeInfo.stops || routeInfo.stops.length < 2) return;\n  var COLORS = routeInfo.colors || [\'#4f46e5\'];\n  var stops = routeInfo.stops;\n  var legInfo = [];\n\n  var st = document.createElement(\'style\');\n  st.textContent = \'.route-panel{position:absolute;top:10px;right:10px;z-index:1000;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.3);padding:8px 10px;max-width:min(360px,70vw);max-height:45%;overflow:auto;font-size:13px;line-height:1.5}.route-panel summary{cursor:pointer;font-weight:700}\';\n  document.head.appendChild(st);\n\n  var seen = {};\n  stops.forEach(function (s, i) {\n    var key = s.lat + \',\' + s.lng;\n    if (!seen[key]) seen[key] = { stop: s, nums: [] };\n    seen[key].nums.push(i + 1);\n  });\n  Object.keys(seen).forEach(function (key) {\n    var g = seen[key];\n    var color = COLORS[(g.nums[0] - 1) % COLORS.length];\n    var html = \'<div style="min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:\' + color + \';color:#fff;font:700 11px/16px sans-serif;text-align:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);white-space:nowrap;">\' + g.nums.join(\'·\') + \'</div>\';\n    L.marker([g.stop.lat, g.stop.lng], {\n      icon: L.divIcon({ className: \'\', html: html, iconSize: [20, 20], iconAnchor: [24, 22] }),\n      interactive: false, zIndexOffset: 1000\n    }).addTo(map);\n  });\n\n  function drawLegs(legs) {\n    legs.forEach(function (leg, i) {\n      var latlngs = leg.coords.map(function (c) { return [c[1], c[0]]; });\n      L.polyline(latlngs, { color: COLORS[i % COLORS.length], weight: 5, opacity: 0.9 }).addTo(map);\n      legInfo.push({ d: leg.d, t: leg.t });\n    });\n    showPanel();\n  }\n\n  function showPanel() {\n    var wrap = document.getElementById(\'map-wrap\');\n    if (!wrap) return;\n    var totalD = 0, totalT = 0;\n    var rows = stops.slice(0, -1).map(function (s, i) {\n      var li = legInfo[i];\n      var extra = \'\';\n      if (li && li.d != null) {\n        totalD += li.d; totalT += li.t;\n        extra = \' · \' + (li.d / 1000).toFixed(1) + \'km · \' + Math.round(li.t / 60) + \'분\';\n      }\n      return \'<div><span style="display:inline-block;width:22px;height:6px;border-radius:3px;vertical-align:middle;margin-right:6px;background:\' + COLORS[i % COLORS.length] + \';"></span>\' +\n        (i + 1) + \'→\' + (i + 2) + \' \' + escapeHtml(s.name) + \' → \' + escapeHtml(stops[i + 1].name) + extra + \'</div>\';\n    }).join(\'\');\n    var summary = \'방문 경로 \' + stops.length + \'곳\' + (totalD ? \' · 총 \' + (totalD / 1000).toFixed(1) + \'km · 약 \' + Math.round(totalT / 60) + \'분\' : \'\');\n    var panel = document.getElementById(\'route-panel\') || document.createElement(\'div\');\n    panel.id = \'route-panel\';\n    panel.className = \'route-panel\';\n    panel.innerHTML = \'<details\' + (stops.length <= 9 ? \' open\' : \'\') + \'><summary>\' + summary + \'</summary>\' + rows + \'</details>\';\n    wrap.appendChild(panel);\n  }\n\n  if (routeInfo.legs && routeInfo.legs.length) {\n    drawLegs(routeInfo.legs);\n  } else {\n    var coords = stops.map(function (s) { return s.lng + \',\' + s.lat; }).join(\';\');\n    fetch(\'https://router.project-osrm.org/route/v1/driving/\' + coords + \'?overview=false&steps=true&geometries=geojson\')\n      .then(function (r) { return r.json(); })\n      .then(function (d) {\n        if (d.code !== \'Ok\' || !d.routes || !d.routes[0]) throw new Error(d.code);\n        var legs = d.routes[0].legs.map(function (leg) {\n          var pts = [];\n          leg.steps.forEach(function (stp) {\n            (stp.geometry.coordinates || []).forEach(function (pt, k) {\n              var prev = pts[pts.length - 1];\n              if (k === 0 && prev && prev[0] === pt[0] && prev[1] === pt[1]) return;\n              pts.push(pt);\n            });\n          });\n          return { coords: pts, d: leg.distance, t: leg.duration };\n        });\n        drawLegs(legs);\n      })\n      .catch(function () { showPanel(); });\n  }\n})();\n\n    if (points.length === 1) {\n      map.setView([points[0].lat, points[0].lng], 16);\n    } else {\n      map.fitBounds(L.featureGroup(markers.map(function (m) { return m.marker; })).getBounds(), { padding: [30, 30] });\n    }\n  <' + '/script>\n</body>\n</html>';
 
   const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
@@ -632,6 +592,237 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 window.addEventListener('load',run);
 new MutationObserver(later).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
 }catch(e){}})();
+</script>
+<script>
+// [경로 표시 확장]
+// 1) 화면 지도: 방문 목록 전체(개수 제한 없음)를 구간별 색상 + 번호 배지로 표시
+// 2) QR: 네이버 지도 앱 주소 규격상 한 번에 7곳(출발1+경유5+도착1)까지만 열리므로,
+//    8곳 이상이면 7곳씩 구간을 나눠 QR을 여러 장 만든다 (앞 구간 도착지 = 다음 구간 출발지)
+// 3) 다운로드 HTML 지도: 방문 목록 경로선을 함께 넣는다 (getRouteExportData 사용)
+(function () {
+  var ROUTE_COLORS = ['#4f46e5', '#e11d48', '#059669', '#d97706', '#0891b2', '#7c3aed', '#db2777', '#65a30d'];
+  var QR_MAX_STOPS = 7;
+  var legPolylines = [];
+  var stopBadges = [];
+  var lastRouteData = null;
+  var lastSegments = [];
+
+  function esc(s) { return escapeHtml(s); }
+  function labelOf(item) { return (item && (item.name || item.address)) || ''; }
+
+  function clearExtras() {
+    legPolylines.forEach(function (p) { p.setMap(null); });
+    stopBadges.forEach(function (m) { m.setMap(null); });
+    legPolylines = [];
+    stopBadges = [];
+  }
+
+  // clearRoute(방문 목록 변경·드래그·초기화 때마다 호출됨)에 새로 그린 선/배지 삭제도 같이 묶는다.
+  var origClearRoute = clearRoute;
+  window.clearRoute = function () {
+    origClearRoute();
+    clearExtras();
+    lastRouteData = null;
+  };
+
+  // ---------- QR 구간 나누기 ----------
+  function splitSegments(list) {
+    var segs = [];
+    var s = 0;
+    while (true) {
+      var e = Math.min(s + QR_MAX_STOPS - 1, list.length - 1);
+      segs.push({ from: s, to: e, items: list.slice(s, e + 1) });
+      if (e >= list.length - 1) break;
+      s = e; // 앞 구간의 도착지가 다음 구간의 출발지
+    }
+    return segs;
+  }
+
+  function ensureSegTabs() {
+    var tabs = document.getElementById('qr-seg-tabs');
+    if (!tabs) {
+      tabs = document.createElement('div');
+      tabs.id = 'qr-seg-tabs';
+      tabs.style.cssText = 'display:none; flex-wrap:wrap; gap:6px; justify-content:center; margin:0 0 10px 0;';
+      var box = document.getElementById('qr-code-box');
+      box.parentNode.insertBefore(tabs, box);
+    }
+    return tabs;
+  }
+
+  window.openNmapSegments = function (k) {
+    var segs = lastSegments;
+    if (!segs.length) return;
+    k = Math.max(0, Math.min(k, segs.length - 1));
+    var seg = segs[k];
+    var tabs = ensureSegTabs();
+    if (segs.length > 1) {
+      tabs.innerHTML = segs.map(function (g, i) {
+        var on = i === k;
+        return '<button type="button" onclick="openNmapSegments(' + i + ')" style="padding:6px 12px; border-radius:14px; cursor:pointer; font-size:0.8rem; font-weight:700; border:1.5px solid #4f46e5; ' +
+          (on ? 'background:#4f46e5; color:#fff;' : 'background:#fff; color:#4f46e5;') + '">구간 ' + (i + 1) + ' (' + (g.from + 1) + '~' + (g.to + 1) + '번)</button>';
+      }).join('');
+      tabs.style.display = 'flex';
+    } else {
+      tabs.innerHTML = '';
+      tabs.style.display = 'none';
+    }
+    var url = buildNaverRouteAppUrlFromOrderedItems(seg.items);
+    var first = labelOf(seg.items[0]);
+    var last = labelOf(seg.items[seg.items.length - 1]);
+    var note = segs.length > 1
+      ? '구간 ' + (k + 1) + '/' + segs.length + ' : ' + (seg.from + 1) + '번 ' + first + ' → ' + (seg.to + 1) + '번 ' + last +
+        ' (네이버 지도 앱은 한 번에 7곳까지만 열려서 나눴습니다. 구간 순서대로 열어 주세요.)'
+      : '방문 목록 ' + seg.items.length + '곳으로 가는 경로가 열립니다.';
+    openNmapLink(url, note);
+  };
+
+  var origShowAll = showAllInNaverApp;
+  window.showAllInNaverApp = function () {
+    if (visitList.length <= 1) { origShowAll(); return; }
+    lastSegments = splitSegments(visitList.map(function (i) { return items[i]; }));
+    openNmapSegments(0);
+  };
+
+  // ---------- 화면 지도: 구간별 색상 선 + 번호 배지 ----------
+  function legCoords(leg, fromItem, toItem) {
+    var pts = [];
+    (leg.steps || []).forEach(function (st) {
+      var c = (st.geometry && st.geometry.coordinates) || [];
+      c.forEach(function (pt, k) {
+        var prev = pts[pts.length - 1];
+        if (k === 0 && prev && prev[0] === pt[0] && prev[1] === pt[1]) return;
+        pts.push(pt);
+      });
+    });
+    if (pts.length < 2) pts = [[fromItem.lng, fromItem.lat], [toItem.lng, toItem.lat]];
+    return pts;
+  }
+
+  function drawLegs(legs, ordered) {
+    clearExtras();
+    var bounds = new naver.maps.LatLngBounds();
+    legs.forEach(function (leg, i) {
+      var path = leg.coords.map(function (c) { return new naver.maps.LatLng(c[1], c[0]); });
+      legPolylines.push(new naver.maps.Polyline({
+        map: map, path: path,
+        strokeColor: ROUTE_COLORS[i % ROUTE_COLORS.length], strokeWeight: 5, strokeOpacity: 0.9
+      }));
+      path.forEach(function (p) { bounds.extend(p); });
+    });
+    // 같은 장소가 목록에 두 번 나오면(출발=도착) 번호를 한 배지에 합쳐서 표시
+    var posByItem = new Map();
+    ordered.forEach(function (it, i) {
+      if (!posByItem.has(it)) posByItem.set(it, []);
+      posByItem.get(it).push(i);
+    });
+    posByItem.forEach(function (positions, it) {
+      var first = positions[0];
+      var color = ROUTE_COLORS[Math.min(first, legs.length - 1) % ROUTE_COLORS.length];
+      var text = positions.map(function (p) { return p + 1; }).join('·');
+      var html = '<div style="min-width:20px; height:20px; padding:0 5px; box-sizing:border-box; border-radius:10px; background:' + color +
+        '; color:#fff; font:700 11px/16px sans-serif; text-align:center; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,0.45); white-space:nowrap;">' + text + '</div>';
+      stopBadges.push(new naver.maps.Marker({
+        position: new naver.maps.LatLng(it.lat, it.lng), map: map, zIndex: 1000, clickable: false,
+        icon: { content: html, anchor: new naver.maps.Point(24, 22) }
+      }));
+    });
+    map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+  }
+
+  function fmtLegRows(legs, ordered) {
+    return legs.map(function (leg, i) {
+      var color = ROUTE_COLORS[i % ROUTE_COLORS.length];
+      return '<div style="margin:2px 0;"><span style="display:inline-block; width:22px; height:6px; border-radius:3px; vertical-align:middle; margin-right:6px; background:' + color + ';"></span>' +
+        (i + 1) + '→' + (i + 2) + ' ' + esc(labelOf(ordered[i])) + ' → ' + esc(labelOf(ordered[i + 1])) +
+        ' · ' + (leg.distance / 1000).toFixed(1) + 'km · ' + Math.round(leg.duration / 60) + '분</div>';
+    }).join('');
+  }
+
+  window.computeRoute = async function () {
+    if (visitList.length < 2) { alert('방문 목록에 2곳 이상 담아 주세요.'); return; }
+    var picked = visitList.map(function (i) { return items[i]; });
+    if (picked.some(function (it) { return !it || it.status !== 'ok'; })) {
+      alert('방문 목록에 좌표 변환에 실패한 항목이 포함되어 있습니다.');
+      return;
+    }
+    routeBtn.disabled = true;
+    routeResultEl.classList.add('visible');
+    routeResultEl.textContent = '⚡ 출발·도착지를 고정하고 중간 경유지 최적 순서를 계산하는 중... (' + picked.length + '곳)';
+    try {
+      var coords = picked.map(function (it) { return it.lng + ',' + it.lat; }).join(';');
+      var url = 'https://router.project-osrm.org/trip/v1/driving/' + coords +
+        '?roundtrip=false&source=first&destination=last&overview=full&steps=true&geometries=geojson';
+      var res = await fetch(url);
+      var data = await res.json();
+      if (data.code !== 'Ok' || !data.trips || !data.trips[0]) {
+        var why = data.message || data.code || '경로를 찾지 못했습니다.';
+        if (data.code === 'TooBig') why += ' (지점이 너무 많습니다. 나눠서 계산해 주세요)';
+        throw new Error(why);
+      }
+      var trip = data.trips[0];
+      var order = data.waypoints.map(function (w, i) { return { order: w.waypoint_index, origPos: i }; })
+        .sort(function (a, b) { return a.order - b.order; })
+        .map(function (o) { return o.origPos; });
+      visitList = order.map(function (p) { return visitList[p]; });
+      renderVisitList();
+
+      var ordered = visitList.map(function (i) { return items[i]; });
+      var legs = trip.legs.map(function (leg, i) {
+        return { coords: legCoords(leg, ordered[i], ordered[i + 1]), distance: leg.distance, duration: leg.duration };
+      });
+      drawLegs(legs, ordered);
+      lastRouteData = { key: visitList.join(','), legs: legs };
+
+      lastSegments = splitSegments(ordered);
+      var names = ordered.map(labelOf);
+      var qrHtml;
+      if (lastSegments.length === 1) {
+        qrHtml = '<a href="javascript:void(0)" onclick="openNmapSegments(0)">📱 네이버 지도 앱으로 이 경로 열기(QR)</a>';
+      } else {
+        qrHtml = '<div style="margin-top:6px;">📱 네이버 지도 앱은 한 번에 7곳까지만 열려서 ' + ordered.length + '곳을 ' + lastSegments.length + '개 구간으로 나눴습니다.</div>' +
+          lastSegments.map(function (g, i) {
+            return '<a href="javascript:void(0)" style="margin-right:12px;" onclick="openNmapSegments(' + i + ')">구간 ' + (i + 1) + ' QR (' + (g.from + 1) + '~' + (g.to + 1) + '번)</a>';
+          }).join('');
+      }
+      routeResultEl.innerHTML =
+        '<div class="rr-order">최적 방문 순서: ' + names.map(esc).join(' → ') + '</div>' +
+        '<div>총 거리 약 ' + (trip.distance / 1000).toFixed(1) + 'km · 예상 소요시간 약 ' + Math.round(trip.duration / 60) + '분 (도로 기준, 실시간 교통정보 미반영)</div>' +
+        '<details style="margin:6px 0;"' + (legs.length <= 8 ? ' open' : '') + '><summary style="cursor:pointer; font-weight:700;">구간별 보기 (' + legs.length + '구간 · 선 색상과 같음)</summary>' +
+        fmtLegRows(legs, ordered) + '</details>' + qrHtml;
+    } catch (err) {
+      console.error(err);
+      routeResultEl.textContent = '❌ 경로 계산에 실패했습니다: ' + err.message;
+    } finally {
+      routeBtn.disabled = visitList.length < 2;
+    }
+  };
+
+  // ---------- 다운로드 HTML 지도용 데이터 ----------
+  window.getRouteExportData = function () {
+    if (visitList.length < 2) return null;
+    var ordered = visitList.map(function (i) { return items[i]; });
+    if (ordered.some(function (it) { return !it || it.status !== 'ok'; })) return null;
+    var legs = null;
+    if (lastRouteData && lastRouteData.key === visitList.join(',')) {
+      legs = lastRouteData.legs.map(function (l) {
+        return {
+          coords: l.coords.map(function (c) { return [Math.round(c[0] * 1e5) / 1e5, Math.round(c[1] * 1e5) / 1e5]; }),
+          d: l.distance, t: l.duration
+        };
+      });
+    }
+    return {
+      colors: ROUTE_COLORS,
+      stops: ordered.map(function (it) { return { name: labelOf(it), lat: it.lat, lng: it.lng }; }),
+      legs: legs
+    };
+  };
+
+  // 안내 문구 수정 (7곳 제한은 QR에만 해당)
+  var sub = document.querySelector('#visit-list-panel .hdr-sub');
+  if (sub) sub.textContent = '드래그로 순서 변경 · 맨 위=출발, 맨 아래=도착 · 지도 경로는 개수 제한 없음 (QR은 7곳씩 구간 나눔)';
+})();
 </script>
 </body>
 </html>
