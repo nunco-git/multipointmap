@@ -740,6 +740,70 @@ new MutationObserver(later).observe(document.documentElement,{childList:true,sub
     }).join('');
   }
 
+  // ---------- 방문 순서 최적화 ----------
+  // OSRM trip은 10곳 이상이면 근사(탐욕) 방식이라 가까운 곳을 건너뛰고 되돌아오는 순서가 나올 수 있다.
+  // 그래서 지점 간 주행시간 표(table)를 받아, 출발·도착은 고정한 채 순서를 직접 다듬는다.
+  // (2-opt: 구간 뒤집기 / Or-opt: 1~3곳 묶음 옮기기를 더 줄어들지 않을 때까지 반복)
+  var BIG = 1e9;
+  function dur(D, a, b) { var v = D[a][b]; return (v === null || v === undefined) ? BIG : v; }
+  function orderCost(D, o) {
+    var c = 0;
+    for (var i = 0; i < o.length - 1; i++) c += dur(D, o[i], o[i + 1]);
+    return c;
+  }
+  function nearestNeighborOrder(D) {
+    var n = D.length, o = [0], used = {0: true, [n - 1]: true};
+    var cur = 0;
+    for (var k = 0; k < n - 2; k++) {
+      var best = -1, bd = Infinity;
+      for (var j = 1; j < n - 1; j++) {
+        if (used[j]) continue;
+        var d = dur(D, cur, j);
+        if (d < bd) { bd = d; best = j; }
+      }
+      o.push(best); used[best] = true; cur = best;
+    }
+    o.push(n - 1);
+    return o;
+  }
+  function improveOrder(D, start) {
+    var o = start.slice(), n = o.length;
+    var best = orderCost(D, o);
+    var improved = true, guard = 0;
+    while (improved && guard++ < 60) {
+      improved = false;
+      // 2-opt
+      for (var i = 1; i < n - 2; i++) {
+        for (var j = i + 1; j < n - 1; j++) {
+          var cand = o.slice(0, i).concat(o.slice(i, j + 1).reverse(), o.slice(j + 1));
+          var c = orderCost(D, cand);
+          if (c < best - 1e-6) { o = cand; best = c; improved = true; }
+        }
+      }
+      // Or-opt (1~3곳 묶음을 다른 자리로)
+      for (var len = 1; len <= 3; len++) {
+        for (var s = 1; s + len <= n - 1; s++) {
+          var seg = o.slice(s, s + len);
+          var rest = o.slice(0, s).concat(o.slice(s + len));
+          for (var pos = 1; pos < rest.length; pos++) {
+            if (pos === s) continue;
+            var cand2 = rest.slice(0, pos).concat(seg, rest.slice(pos));
+            var c2 = orderCost(D, cand2);
+            if (c2 < best - 1e-6) { o = cand2; best = c2; improved = true; break; }
+          }
+          if (improved) break;
+        }
+        if (improved) break;
+      }
+    }
+    return o;
+  }
+
+  async function osrmJson(url) {
+    var res = await fetch(url);
+    return res.json();
+  }
+
   window.computeRoute = async function () {
     if (visitList.length < 2) { alert('방문 목록에 2곳 이상 담아 주세요.'); return; }
     var picked = visitList.map(function (i) { return items[i]; });
@@ -751,25 +815,73 @@ new MutationObserver(later).observe(document.documentElement,{childList:true,sub
     routeResultEl.classList.add('visible');
     routeResultEl.textContent = '⚡ 출발·도착지를 고정하고 중간 경유지 최적 순서를 계산하는 중... (' + picked.length + '곳)';
     try {
+      var n = picked.length;
       var coords = picked.map(function (it) { return it.lng + ',' + it.lat; }).join(';');
-      var url = 'https://router.project-osrm.org/trip/v1/driving/' + coords +
-        '?roundtrip=false&source=first&destination=last&overview=full&steps=true&geometries=geojson';
-      var res = await fetch(url);
-      var data = await res.json();
-      if (data.code !== 'Ok' || !data.trips || !data.trips[0]) {
-        var why = data.message || data.code || '경로를 찾지 못했습니다.';
-        if (data.code === 'TooBig') why += ' (지점이 너무 많습니다. 나눠서 계산해 주세요)';
-        throw new Error(why);
+      var base = 'https://router.project-osrm.org/';
+
+      // 1) OSRM 기본 최적 순서 (trip)
+      var tripData = null, tripOrder = null, tripWhy = '';
+      try {
+        var td = await osrmJson(base + 'trip/v1/driving/' + coords +
+          '?roundtrip=false&source=first&destination=last&overview=full&steps=true&geometries=geojson');
+        if (td.code === 'Ok' && td.trips && td.trips[0]) {
+          tripData = td;
+          tripOrder = td.waypoints.map(function (w, i) { return { order: w.waypoint_index, origPos: i }; })
+            .sort(function (a, b) { return a.order - b.order; })
+            .map(function (o) { return o.origPos; });
+        } else {
+          tripWhy = td.message || td.code || '';
+        }
+      } catch (e) { tripWhy = e.message; }
+
+      // 2) 주행시간 표로 순서 다듬기
+      var matrix = null, matrixWhy = '';
+      try {
+        var tb = await osrmJson(base + 'table/v1/driving/' + coords + '?annotations=duration');
+        if (tb.code === 'Ok' && tb.durations) matrix = tb.durations;
+        else matrixWhy = tb.message || tb.code || '';
+      } catch (e) { matrixWhy = e.message; }
+
+      if (!tripOrder && !matrix) throw new Error(tripWhy || matrixWhy || '경로를 찾지 못했습니다.' +
+        (n > 90 ? ' (지점이 너무 많습니다. 나눠서 계산해 주세요)' : ''));
+
+      var order = tripOrder, savedSec = 0, refineNote = '';
+      if (matrix) {
+        var cands = [];
+        if (tripOrder) cands.push(tripOrder);
+        if (n >= 3) cands.push(nearestNeighborOrder(matrix));
+        var best = null;
+        cands.forEach(function (c) {
+          var o = improveOrder(matrix, c);
+          var cs = orderCost(matrix, o);
+          if (!best || cs < best.cost) best = { order: o, cost: cs };
+        });
+        if (best) {
+          order = best.order;
+          if (tripOrder) savedSec = orderCost(matrix, tripOrder) - best.cost;
+        }
+      } else {
+        refineNote = '순서 보정은 건너뛰었습니다 (' + (matrixWhy || '주행시간 표를 받지 못함') + '). OSRM 기본 순서를 사용합니다.';
       }
-      var trip = data.trips[0];
-      var order = data.waypoints.map(function (w, i) { return { order: w.waypoint_index, origPos: i }; })
-        .sort(function (a, b) { return a.order - b.order; })
-        .map(function (o) { return o.origPos; });
+
+      // 3) 최종 순서의 구간별 경로
+      var sameAsTrip = !!tripOrder && order.join(',') === tripOrder.join(',');
+      var rawLegs, totalDist, totalDur;
+      if (sameAsTrip) {
+        var t = tripData.trips[0];
+        rawLegs = t.legs; totalDist = t.distance; totalDur = t.duration;
+      } else {
+        var oc = order.map(function (p) { return picked[p].lng + ',' + picked[p].lat; }).join(';');
+        var rd = await osrmJson(base + 'route/v1/driving/' + oc + '?overview=false&steps=true&geometries=geojson');
+        if (rd.code !== 'Ok' || !rd.routes || !rd.routes[0]) throw new Error(rd.message || rd.code || '경로를 찾지 못했습니다.');
+        rawLegs = rd.routes[0].legs; totalDist = rd.routes[0].distance; totalDur = rd.routes[0].duration;
+      }
+
       visitList = order.map(function (p) { return visitList[p]; });
       renderVisitList();
 
       var ordered = visitList.map(function (i) { return items[i]; });
-      var legs = trip.legs.map(function (leg, i) {
+      var legs = rawLegs.map(function (leg, i) {
         return { coords: legCoords(leg, ordered[i], ordered[i + 1]), distance: leg.distance, duration: leg.duration };
       });
       drawLegs(legs, ordered);
@@ -786,9 +898,13 @@ new MutationObserver(later).observe(document.documentElement,{childList:true,sub
             return '<a href="javascript:void(0)" style="margin-right:12px;" onclick="openNmapSegments(' + i + ')">구간 ' + (i + 1) + ' QR (' + (g.from + 1) + '~' + (g.to + 1) + '번)</a>';
           }).join('');
       }
+      var noteHtml = '';
+      if (savedSec >= 30) noteHtml = '<div>✔ 순서 보정: OSRM 기본 순서보다 약 ' + Math.round(savedSec / 60) + '분 단축했습니다.</div>';
+      else if (refineNote) noteHtml = '<div>ℹ️ ' + esc(refineNote) + '</div>';
       routeResultEl.innerHTML =
         '<div class="rr-order">최적 방문 순서: ' + names.map(esc).join(' → ') + '</div>' +
-        '<div>총 거리 약 ' + (trip.distance / 1000).toFixed(1) + 'km · 예상 소요시간 약 ' + Math.round(trip.duration / 60) + '분 (도로 기준, 실시간 교통정보 미반영)</div>' +
+        '<div>총 거리 약 ' + (totalDist / 1000).toFixed(1) + 'km · 예상 소요시간 약 ' + Math.round(totalDur / 60) + '분 (도로 기준, 실시간 교통정보 미반영)</div>' +
+        noteHtml +
         '<details style="margin:6px 0;"' + (legs.length <= 8 ? ' open' : '') + '><summary style="cursor:pointer; font-weight:700;">구간별 보기 (' + legs.length + '구간 · 선 색상과 같음)</summary>' +
         fmtLegRows(legs, ordered) + '</details>' + qrHtml;
     } catch (err) {
